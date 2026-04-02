@@ -11,6 +11,6 @@ export interface EntityMatrix {
 export interface CombatState {
 	turn: number;
 	entities: EntityMatrix;
-	runtimeListeners: Array<RegisteredRuntimeListener>;
+	listeners: Array<RegisteredRuntimeListener>;
 	eventLog: Array<string>;
 }

@@ -2,15 +2,14 @@
 
 import type { StateChange } from './diff.ts';
 import type { OperationContext } from '.';
+import { requireCtx } from './helpers.ts';
 
 export function applyStatusMaxTurns (
 	ctx: OperationContext
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
-	const status = ctx.status;
-	const amount = ctx.amount;
-	if (!status) throw new Error("Required Field 'Status' Not Provided in CTX.");
-	if (!amount) throw new Error("Required Field 'Amount' Not Provided in CTX.");
+	requireCtx('applyStatusMaxTurns', ctx, ['status', 'amount']);
+	const { status, amount } = ctx;
 	
 	for (const target of ctx.targets.entities) {
 		const before = target.statusMaxTurns[status];
@@ -28,10 +27,8 @@ export function reduceStatusMaxTurns (
 	ctx: OperationContext
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
-	const status = ctx.status;
-	const amount = ctx.amount;
-	if (!status) throw new Error("Required Field 'Status' Not Provided in CTX.");
-	if (!amount) throw new Error("Required Field 'Amount' Not Provided in CTX.");
+	requireCtx('reduceStatusMaxTurns', ctx, ['status', 'amount']);
+	const { status, amount } = ctx;
 	
 	for (const target of ctx.targets.entities) {
 		const before = target.statusMaxTurns[status];

@@ -2,15 +2,19 @@
 
 import type { StateChange } from './diff.ts';
 import type { OperationContext } from '.';
+import { requireCtx } from './helpers.ts';
 
 export function applyCooldownTurns (
 	ctx: OperationContext
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
-	const amount = ctx.amount;
-	if (!amount) throw new Error("Required Field 'Amount' Not Provided in CTX.");
+	requireCtx('applyCooldownTurns', ctx, ['amount']);
+	const { amount } = ctx;
 
-	for (const target of [...ctx.targets.moves, ...ctx.targets.blessings]) {
+	for (const target of [
+		...ctx.targets.moves,
+		...ctx.targets.blessings
+	]) {
 		const before = target.cooldownTurns;
 		intents.push({
 			host: target,
@@ -26,10 +30,13 @@ export function reduceCooldownTurns (
 	ctx: OperationContext
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
-	const amount = ctx.amount;
-	if (!amount) throw new Error("Required Field 'Amount' Not Provided in CTX.");
+	requireCtx('reduceCooldownTurns', ctx, ['amount']);
+	const { amount } = ctx;
 
-	for (const target of [...ctx.targets.moves, ...ctx.targets.blessings]) {
+	for (const target of [
+		...ctx.targets.moves,
+		...ctx.targets.blessings
+	]) {
 		const before = target.cooldownTurns;
 		intents.push({
 			host: target,
@@ -45,10 +52,13 @@ export function extendCooldownTurns (
 	ctx: OperationContext
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
-	const amount = ctx.amount;
-	if (!amount) throw new Error("Required Field 'Amount' Not Provided in CTX.");
+	requireCtx('extendCooldownTurns', ctx, ['amount']);
+	const { amount } = ctx;
 
-	for (const target of [...ctx.targets.moves, ...ctx.targets.blessings]) {
+	for (const target of [
+		...ctx.targets.moves,
+		...ctx.targets.blessings
+	]) {
 		const before = target.cooldownTurns;
 		if (before > 0) {
 			intents.push({
@@ -67,7 +77,10 @@ export function negateCooldown (
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
 
-	for (const target of [...ctx.targets.moves, ...ctx.targets.blessings]) {
+	for (const target of [
+		...ctx.targets.moves,
+		...ctx.targets.blessings
+	]) {
 		intents.push({
 			host: target,
 			field: ['cooldownTurns'],

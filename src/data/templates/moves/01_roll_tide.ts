@@ -17,7 +17,7 @@ export const RollTide: MoveTemplate = {
 	baseIterations: 1,
 	cooldownTurns: 0,
 	isBound: false,
-	steps: [
+	operations: [
 		{
 			kind: 'emit_intent',
 			intent: {
@@ -30,8 +30,7 @@ export const RollTide: MoveTemplate = {
 		{
 			kind: 'repeat',
 			times: constant(1),
-			steps: [
-				{
+			steps: [{
 					kind: 'emit_intent',
 					intent: {
 						kind: 'deal_damage',
@@ -39,8 +38,7 @@ export const RollTide: MoveTemplate = {
 						element: 'water',
 						amount: constant(2),
 					},
-				},
-			],
+			}],
 		},
 	],
 };

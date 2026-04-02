@@ -39,7 +39,7 @@ export interface CombatMove {
 	description: string;
 	element: DamageElement;
 	moveType: MoveType;
-	owner: CombatEntity | null;
+	owner: CombatEntity;
 	targeting: CombatTargetingRules;
 	baseDamage: number;
 	baseIterations: number;
@@ -53,7 +53,7 @@ export interface CombatBlessing {
 	name: string;
 	description: string;
 	element: DamageElement;
-	owner: CombatEntity | null;
+	owner: CombatEntity;
 	cooldownTurns: number;
 	currentCooldownTurns: number;
 	isExhausted: boolean;

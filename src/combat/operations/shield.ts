@@ -2,13 +2,14 @@
 
 import type { StateChange } from './diff.ts';
 import type { OperationContext } from '.';
+import { requireCtx } from './helpers.ts';
 
 export function applyShields (
 	ctx: OperationContext
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
-	const amount = ctx.amount;
-	if (!amount) throw new Error("Required Field 'Amount' Not Provided in CTX")
+	requireCtx('applyShields', ctx, ['amount']);
+	const { amount } = ctx;
 
 	for (const target of ctx.targets.entities) {
 		intents.push({
@@ -25,8 +26,8 @@ export function reduceShields (
 	ctx: OperationContext
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
-	const amount = ctx.amount;
-	if (!amount) throw new Error("Required Field 'Amount' Not Provided in CTX");
+	requireCtx('reduceShields', ctx, ['amount']);
+	const { amount } = ctx;
 
 	for (const target of ctx.targets.entities) {
 		intents.push({
@@ -43,8 +44,8 @@ export function extendShields (
 	ctx: OperationContext
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
-	const amount = ctx.amount;
-	if (!amount) throw new Error("Required Field 'Amount' Not Provided in CTX");
+	requireCtx('extendShields', ctx, ['amount']);
+	const { amount } = ctx;
 
 	for (const target of ctx.targets.entities) {
 		const before = target.shields;

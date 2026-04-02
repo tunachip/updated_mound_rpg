@@ -1,4 +1,12 @@
 ## TODO
 
 
-## Notes
+## Tasks
+
+### move execution system
+- [ ] makeTurnChoices()
+- [ ] executeTurnChoices()
+- [ ] 
+- [ ] 
+- [ ] 
+- [ ] 

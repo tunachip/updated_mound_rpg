@@ -2,13 +2,14 @@
 
 import type { StateChange } from './diff.ts';
 import type { OperationContext } from './index.ts';
+import { requireCtx } from './helpers.ts';
 
 export function applyCurseChance (
 	ctx: OperationContext
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
-	const amount = ctx.amount
-	if (!amount) throw new Error("Required Field 'Amount' Not Provided in CTX.");
+	requireCtx('applyCurseChance', ctx, ['amount']);
+	const { amount } = ctx;
 
 	for (const target of ctx.targets.entities) {
 		const before = target.curseChance;
@@ -26,8 +27,8 @@ export function reduceCurseChance (
 	ctx: OperationContext
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
-	const amount = ctx.amount
-	if (!amount) throw new Error("Required Field 'Amount' Not Provided in CTX.");
+	requireCtx('reduceCurseChance', ctx, ['amount']);
+	const { amount } = ctx;
 
 	for (const target of ctx.targets.entities) {
 		const before = target.curseChance;
@@ -45,8 +46,8 @@ export function extendCurseChance (
 	ctx: OperationContext
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
-	const amount = ctx.amount
-	if (!amount) throw new Error("Required Field 'Amount' Not Provided in CTX.");
+	requireCtx('extendCurseChance', ctx, ['amount']);
+	const { amount } = ctx;
 
 	for (const target of ctx.targets.entities) {
 		const before = target.curseChance;

@@ -2,15 +2,14 @@
 
 import type { StateChange } from './diff.ts';
 import type { OperationContext } from '.';
+import { requireCtx } from './helpers.ts';
 
 export function applyStatusTurns (
 	ctx: OperationContext
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
-	const status = ctx.status;
-	const amount = ctx.amount;
-	if (!status) throw new Error("Required Field 'Status' Not Provided in CTX.");
-	if (!amount) throw new Error("Required Field 'Amount' Not Provided in CTX.");
+	requireCtx('applyStatusTurns', ctx, ['status', 'amount']);
+	const { status, amount } = ctx;
 	
 	for (const target of ctx.targets.entities) {
 		const before = target.statusTurns[status];
@@ -39,10 +38,8 @@ export function reduceStatusTurns (
 	ctx: OperationContext
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
-	const status = ctx.status;
-	const amount = ctx.amount;
-	if (!status) throw new Error("Required Field 'Status' Not Provided in CTX.");
-	if (!amount) throw new Error("Required Field 'Amount' Not Provided in CTX.");
+	requireCtx('reduceStatusTurns', ctx, ['status', 'amount']);
+	const { status, amount } = ctx;
 
 	for (const target of ctx.targets.entities) {
 		const before = target.statusTurns[status];
@@ -71,10 +68,8 @@ export function extendStatusTurns (
 	ctx: OperationContext
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
-	const status = ctx.status;
-	const amount = ctx.amount;
-	if (!status) throw new Error("Required Field 'Status' Not Provided in CTX.");
-	if (!amount) throw new Error("Required Field 'Amount' Not Provided in CTX.");
+	requireCtx('extendStatusTurns', ctx, ['status', 'amount']);
+	const { status, amount } = ctx;
 	
 	for (const target of ctx.targets.entities) {
 		const before = target.statusTurns[status];
@@ -103,8 +98,8 @@ export function negateStatus (
 	ctx: OperationContext
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
-	const status = ctx.status;
-	if (!status) throw new Error("Required Field 'Status' Not Provided in CTX.");
+	requireCtx('negateStatus', ctx, ['status']);
+	const { status } = ctx;
 	
 	for (const target of ctx.targets.entities) {
 		if (target.hasStatus[status] === true) {

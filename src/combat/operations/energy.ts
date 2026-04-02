@@ -2,13 +2,14 @@
 
 import type { StateChange } from './diff.ts';
 import type { OperationContext } from '.';
+import { requireCtx } from './helpers.ts';
 
 export function applyEnergy (
 	ctx: OperationContext
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
-	const amount = ctx.amount;
-	if (!amount) throw new Error("Required Field 'Amount' Not Provided in CTX.");
+	requireCtx('applyEnergy', ctx, ['amount']);
+	const { amount } = ctx;
 	
 	for (const target of ctx.targets.entities) {
 		const before = target.energy;
@@ -29,8 +30,8 @@ export function reduceEnergy (
 	ctx: OperationContext
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
-	const amount = ctx.amount;
-	if (!amount) throw new Error("Required Field 'Amount' Not Provided in CTX.");
+	requireCtx('reduceEnergy', ctx, ['amount']);
+	const { amount } = ctx;
 	
 	for (const target of ctx.targets.entities) {
 		const before = target.energy;
@@ -50,8 +51,8 @@ export function extendEnergy (
 	ctx: OperationContext
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
-	const amount = ctx.amount;
-	if (!amount) throw new Error("Required Field 'Amount' Not Provided in CTX.");
+	requireCtx('extendEnergy', ctx, ['amount']);
+	const { amount } = ctx;
 	
 	for (const target of ctx.targets.entities) {
 		const before = target.energy;

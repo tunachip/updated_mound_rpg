@@ -2,13 +2,14 @@
 
 import type { StateChange } from './diff.ts';
 import type { OperationContext } from '.';
+import { requireCtx } from './helpers.ts';
 
 export function changeEntityType (
 	ctx: OperationContext
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
-	const entityType = ctx.entityType;
-	if (!entityType) throw new Error("Required Field 'EntityType' Not Provided in CTX.");
+	requireCtx('changeEntityType', ctx, ['entityType']);
+	const { entityType } = ctx;
 	
 	for (const target of ctx.targets.entities) {
 		const before = target.entityType;

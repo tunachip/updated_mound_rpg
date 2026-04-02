@@ -2,13 +2,14 @@
 
 import type { StateChange } from './diff.ts';
 import type { OperationContext } from '.';
+import { requireCtx } from './helpers.ts';
 
 export function applyMaxEnergy (
 	ctx: OperationContext
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
-	const amount = ctx.amount;
-	if (!amount) throw new Error("Required Field 'Amount' Not Provided in CTX.");
+	requireCtx('applyMaxEnergy', ctx, ['amount']);
+	const { amount } = ctx;
 	
 	for (const target of ctx.targets.entities) {
 		const before = target.maxEnergy;
@@ -26,8 +27,8 @@ export function reduceMaxEnergy (
 	ctx: OperationContext
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
-	const amount = ctx.amount;
-	if (!amount) throw new Error("Required Field 'Amount' Not Provided in CTX.");
+	requireCtx('reduceMaxEnergy', ctx, ['amount']);
+	const { amount } = ctx;
 	
 	for (const target of ctx.targets.entities) {
 		const before = target.maxEnergy;

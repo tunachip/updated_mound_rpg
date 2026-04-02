@@ -5,6 +5,7 @@ import type { OperationContext } from '.';
 import type { CombatEntity } from '../models';
 import type { DamageElement } from '../../shared';
 import { DamageElements, ElementRelationships } from '../../shared';
+import { requireCtx } from './helpers.ts';
 
 interface CalculatedDamage {
 	damage: number;
@@ -97,10 +98,8 @@ export function attack(
 	ctx: OperationContext,
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
-	const element = ctx.element;
-	const amount = ctx.amount;
-	if (!element) throw new Error("Required Field 'Element' Not Provided in CTX.");
-	if (!amount) throw new Error("Required Field 'Amount' Not Provided in CTX.");
+	requireCtx('attack', ctx, ['element', 'amount']);
+	const { element, amount } = ctx;
 
 	for (const target of ctx.targets.entities) {
 		const calculated = calculateDamage(amount, element, target);
@@ -114,10 +113,8 @@ export function applyDamageFromStatus(
 	ctx: OperationContext,
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
-	const status = ctx.status;
-	const amount = ctx.amount;
-	if (!status) throw new Error("Required Field 'Status' Not Provided in CTX.");
-	if (!amount) throw new Error("Required Field 'Amount' Not Provided in CTX.");
+	requireCtx('applyDamageFromStatus', ctx, ['status', 'amount']);
+	const { status, amount } = ctx;
 
 	const element = getStatusDamageElement(status);
 	if (!element) return intents;

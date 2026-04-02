@@ -2,13 +2,14 @@
 
 import type { StateChange } from './diff.ts';
 import type { OperationContext } from '.';
+import { requireCtx } from './helpers.ts';
 
 export function applyExtraIterations (
 	ctx: OperationContext
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
-	const amount = ctx.amount;
-	if (!amount) throw new Error("Required Field 'Amount' Not Provided in CTX.");
+	requireCtx('applyExtraIterations', ctx, ['amount']);
+	const { amount } = ctx;
 	
 	for (const target of ctx.targets.entities) {
 		const before = target.extraIterations;
@@ -26,8 +27,8 @@ export function reduceExtraIterations (
 	ctx: OperationContext
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
-	const amount = ctx.amount;
-	if (!amount) throw new Error("Required Field 'Amount' Not Provided in CTX.");
+	requireCtx('reduceExtraIterations', ctx, ['amount']);
+	const { amount } = ctx;
 	
 	for (const target of ctx.targets.entities) {
 		const before = target.extraIterations;
@@ -60,5 +61,3 @@ export function negateExtraIterations (
 	}
 	return intents;
 }
-
-

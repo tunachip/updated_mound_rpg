@@ -15,5 +15,5 @@ export interface MoveTemplate {
 	baseIterations: number;
 	cooldownTurns: number;
 	isBound: boolean;
-	steps: Array<OperationStep>;
+	operations: Array<OperationStep>;
 }
