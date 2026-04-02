@@ -1,0 +1,35 @@
+// src/combat/turn/turn-execute-choices.ts
+
+import type { CombatEntity, TurnChoice } from '../models';
+import type { CombatState } from '..';
+import { turnChoiceDisqualified } from './turn-disqualifiers.ts';
+
+
+
+function executeTurnChoice (
+	combat: CombatState,
+	caster: CombatEntity,
+	turnChoice: TurnChoice,
+): boolean {
+	const move = turnChoice[0];
+	for (const operation of move.operations) {
+		if (turnChoiceDisqualified(caster, turnChoice)) {
+			return true;
+		};
+
+		const intent = operation.function({
+			caster: caster,
+			move: move,
+			targets: turnChoice[1],
+		});
+	}
+
+	return false;
+}
+
+export function executeTurnChoices (
+	combat: CombatState,
+	entity: CombatEntity,
+): void {
+
+}

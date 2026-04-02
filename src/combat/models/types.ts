@@ -1,11 +1,16 @@
 // src/combat/models/types.ts
 
 import type { DamageElement, EntityType, MoveType, Status } from '../../shared';
-import type { BlessingListener, OperationStep } from '../operations';
+import type { TargetMatrix } from '../operations';
 
 export interface CombatTargetingRules {
 	type: 'self' | 'ally' | 'enemy' | 'entity' | 'move' | 'blessing';
 	range: [min: number, max: number];
+}
+
+export interface TurnChoice {
+	move: CombatMove;
+	targets: TargetMatrix;
 }
 
 export interface CombatEntity {
@@ -26,11 +31,13 @@ export interface CombatEntity {
 	hasStatus: Record<Status, boolean>;
 	statusTurns: Record<Status, number>;
 	statusMaxTurns: Record<Status, number>;
+	ignoresStatusTurns: Record<Status, number>;
 	maxDamageTaken: number;
 	lastDamageTaken: number;
 	totalDamageTaken: number;
 	moves: Array<CombatMove>;
 	blessings: Array<CombatBlessing>;
+	turnChoices: Array<TurnChoice>;
 }
 
 export interface CombatMove {
@@ -45,7 +52,8 @@ export interface CombatMove {
 	baseIterations: number;
 	cooldownTurns: number;
 	isBound: boolean;
-	steps: Array<OperationStep>;
+	ignoresStatuses: Array<Status>;
+	operations: Array<Operation>;
 }
 
 export interface CombatBlessing {
@@ -58,5 +66,5 @@ export interface CombatBlessing {
 	currentCooldownTurns: number;
 	isExhausted: boolean;
 	isBound: boolean;
-	listeners: Array<BlessingListener>;
+	listeners: Array<Listener>;
 }

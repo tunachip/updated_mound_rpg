@@ -3,7 +3,7 @@
 import type { DamageElement, Status, EntityType } from '../../shared';
 import type { CombatBlessing, CombatEntity, CombatMove } from '../models';
 
-interface TargetMatrix {
+export interface TargetMatrix {
 	entities: Array<CombatEntity>;
 	moves: Array<CombatMove>;
 	blessings: Array<CombatBlessing>;
@@ -17,4 +17,9 @@ export interface OperationContext {
 	element?: DamageElement;
 	status?: Status;
 	amount?: number;
+}
+
+export interface Operation {
+	function: Function;
+	requirements: Array<any>;
 }
