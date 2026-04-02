@@ -19,3 +19,4 @@ export * from './max-status.ts';
 export * from './move-element.ts';
 export * from './shield.ts';
 export * from './status.ts';
+export * from './loop.ts';

@@ -21,6 +21,7 @@ export interface OperationContext {
 	element?: DamageElement;
 	status?: Status;
 	amount?: number;
+	operations?: Array<Operation>;
 }
 
 export type OperationHandler = (ctx: OperationContext) => Array<StateChange>;

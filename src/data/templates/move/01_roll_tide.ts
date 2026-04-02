@@ -12,26 +12,31 @@ export const RollTide: MoveTemplate = {
 	id: 'move_roll_tide',
 	name: 'Roll Tide',
 	description: 'Caster attunes to Water. Deals 2 Water damage to target.',
-	type: 'attack',
+	moveType: 'attack',
 	element: 'water',
-	targeting: {
+	targetType: {
 		type: 'enemy',
 		range: [1, 1],
 	},
 	baseDamage: 2,
 	baseIterations: 1,
-	cooldownTurns: 0,
-	isBound: false,
+	ignoresStatuses: [],
 	operations: [
 		operation(applyAttunement, {
 			ctx: { element: 'water' },
 			targets: selfTargets(),
 		}),
+		operation(loop, {
+			ctx: { element: 'water' },
+			targets: selfTargets(),
+		}),
+	],
+	loopOperations: [
 		operation(attack, {
 			ctx: {
 				element: 'water',
 				amount: 2,
 			},
 		}),
-	],
+	]
 };

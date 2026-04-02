@@ -25,17 +25,15 @@ export function requireCtx<K extends keyof OperationContext>(
 	keys: readonly K[],
 ): asserts ctx is OperationContext & Required<Pick<OperationContext, K>> {
 	const missing = keys.filter((key) => ctx[key] == null);
-
 	if (missing.length > 0) {
 		let errorMessage = `'${operation}' Failed.\n\nMissing CTX Attributes:\n`;
-		for (const key of missing) {
-			errorMessage += `\t'${String(key)}'\n`;
-		}
+		for (const key of missing) errorMessage += `\t'${String(key)}'\n`;
 		throw new Error(errorMessage);
 	}
 }
 
-export function emptyTargets(): TargetMatrix {
+export function emptyTargets(
+): TargetMatrix {
 	return {
 		entities: [],
 		moves: [],
@@ -55,46 +53,57 @@ export function makeTargets({
 	};
 }
 
-export function selectedTargets(): TargetResolver {
+export function selectedTargets(
+): TargetResolver {
 	return (ctx) => ctx.targets;
 }
 
-export function selfTargets(): TargetResolver {
+export function selfTargets(
+): TargetResolver {
 	return (ctx) => makeTargets({ entities: [ctx.caster] });
 }
 
-export function ownerTargets(): TargetResolver {
+export function ownerTargets(
+): TargetResolver {
 	return (ctx) => {
 		const owner = ctx.blessing?.owner ?? ctx.caster;
 		return makeTargets({ entities: [owner] });
 	};
 }
 
-export function hostTargets(): TargetResolver {
+export function hostTargets(
+): TargetResolver {
 	return (ctx) => {
 		const change = ctx.change;
 		if (!change) {
 			return emptyTargets();
 		}
-		if ('entityType' in change.host) {
-			return makeTargets({ entities: [change.host] });
-		}
-		if ('moveType' in change.host) {
-			return makeTargets({ moves: [change.host] });
-		}
-		return makeTargets({ blessings: [change.host] });
-	};
+		switch (true) {
+			case 'entityType' in change.host:
+				return makeTargets({ entities: [change.host] });
+			case 'moveType' in change.host:
+				return makeTargets({ moves: [change.host] });
+			default:
+				return makeTargets({ blessings: [change.host] });
+		};
+	}
 }
 
-export function entityTargets(...entities: Array<CombatEntity>): TargetMatrix {
+export function entityTargets(
+	...entities: Array<CombatEntity>
+): TargetMatrix {
 	return makeTargets({ entities });
 }
 
-export function moveTargets(...moves: Array<CombatMove>): TargetMatrix {
+export function moveTargets(
+	...moves: Array<CombatMove>
+): TargetMatrix {
 	return makeTargets({ moves });
 }
 
-export function blessingTargets(...blessings: Array<CombatBlessing>): TargetMatrix {
+export function blessingTargets(
+	...blessings: Array<CombatBlessing>
+): TargetMatrix {
 	return makeTargets({ blessings });
 }
 
@@ -132,10 +141,13 @@ export function listener(options: {
 	};
 }
 
-export function changeHostIsOwner(): ListenerCondition {
+export function changeHostIsOwner(
+): ListenerCondition {
 	return (ctx) => ctx.change.host.id === ctx.owner.id;
 }
 
-export function changeAfterAtMost(threshold: number): ListenerCondition {
+export function changeAfterAtMost(
+	threshold: number
+): ListenerCondition {
 	return (ctx) => typeof ctx.change.after === 'number' && ctx.change.after <= threshold;
 }
