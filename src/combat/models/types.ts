@@ -1,7 +1,7 @@
 // src/combat/models/types.ts
 
 import type { DamageElement, EntityType, MoveType, Status } from '../../shared';
-import type { TargetMatrix } from '../operations';
+import type { Listener, Operation, TargetMatrix } from '../operations';
 
 export interface CombatTargetingRules {
 	type: 'self' | 'ally' | 'enemy' | 'entity' | 'move' | 'blessing';
@@ -51,6 +51,7 @@ export interface CombatMove {
 	baseDamage: number;
 	baseIterations: number;
 	cooldownTurns: number;
+	currentCooldownTurns: number;
 	isBound: boolean;
 	ignoresStatuses: Array<Status>;
 	operations: Array<Operation>;

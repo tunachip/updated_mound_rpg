@@ -1,6 +1,11 @@
 // src/data/templates/moves/01_roll_tide.ts
 
-import { caster, constant, selectedEntity } from '../../../combat/operations';
+import {
+	applyAttunement,
+	attack,
+	operation,
+	selfTargets,
+} from '../../../combat/operations';
 import type { MoveTemplate } from './types.ts';
 
 export const RollTide: MoveTemplate = {
@@ -18,27 +23,15 @@ export const RollTide: MoveTemplate = {
 	cooldownTurns: 0,
 	isBound: false,
 	operations: [
-		{
-			kind: 'emit_intent',
-			intent: {
-				kind: 'set_attunement',
-				target: caster(),
+		operation(applyAttunement, {
+			ctx: { element: 'water' },
+			targets: selfTargets(),
+		}),
+		operation(attack, {
+			ctx: {
 				element: 'water',
-				value: true,
+				amount: 2,
 			},
-		},
-		{
-			kind: 'repeat',
-			times: constant(1),
-			steps: [{
-					kind: 'emit_intent',
-					intent: {
-						kind: 'deal_damage',
-						target: selectedEntity(0),
-						element: 'water',
-						amount: constant(2),
-					},
-			}],
-		},
+		}),
 	],
 };

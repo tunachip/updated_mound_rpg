@@ -15,7 +15,7 @@ export function applyMaxEnergy (
 		const before = target.maxEnergy;
 		intents.push({
 			host: target,
-			field: ['energy'],
+			field: ['maxEnergy'],
 			before: before,
 			after: before + amount,
 		});
@@ -35,7 +35,7 @@ export function reduceMaxEnergy (
 		if (before > 0) {
 			intents.push({
 				host: target,
-				field: ['energy'],
+				field: ['maxEnergy'],
 				before: before,
 				after: Math.max(0, before - amount),
 			});

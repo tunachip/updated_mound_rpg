@@ -1,10 +1,11 @@
 // src/data/templates/blessings/02_unbreakable.ts
 
 import {
-	constant,
-	eventTargetIsOwner,
-	selfBlessing,
-	wouldReduceTargetHpToOrBelow,
+	blessingTargets,
+	changeAfterAtMost,
+	changeHostIsOwner,
+	exhaustBlessings,
+	listener,
 } from '../../../combat/operations';
 import type { BlessingTemplate } from './types.ts';
 
@@ -17,28 +18,26 @@ export const Unbreakable: BlessingTemplate = {
 	cooldownTurns: 0,
 	isBound: false,
 	listeners: [
-		{
+		listener({
 			id: 'unbreakable_prevent_death',
 			phase: 'interrupt',
-			trigger: 'deal_damage',
+			trigger: 'entity.hp',
 			conditions: [
-				eventTargetIsOwner(),
-				wouldReduceTargetHpToOrBelow(0),
+				changeHostIsOwner(),
+				changeAfterAtMost(0),
 			],
-			effects: [
-				{
-					kind: 'set_current_intent_target_hp',
-					hp: constant(1),
-				},
-				{
-					kind: 'enqueue_side_effect',
-					intent: {
-						kind: 'set_blessing_exhausted',
-						target: selfBlessing(),
-						isExhausted: true,
-					},
-				},
-			],
-		},
+			handler: (ctx) => {
+				ctx.change.after = 1;
+				ctx.sideEffects.push(
+					...exhaustBlessings({
+						caster: ctx.owner,
+						move: ctx.move,
+						blessing: ctx.blessing,
+						change: ctx.change,
+						targets: blessingTargets(ctx.blessing),
+					}),
+				);
+			},
+		}),
 	],
 };

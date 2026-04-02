@@ -24,7 +24,7 @@ export function audit (
 			...entity.moves,
 			...entity.blessings
 		].filter(
-			effect => effect.cooldownTurns > 0
+			effect => effect.currentCooldownTurns > 0
 		)
 	};
 }

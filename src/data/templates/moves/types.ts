@@ -2,7 +2,7 @@
 
 import type { DamageElement, MoveType } from '../../../shared';
 import type { CombatTargetingRules } from '../../../combat/models';
-import type { OperationStep } from '../../../combat/operations';
+import type { Operation } from '../../../combat/operations';
 
 export interface MoveTemplate {
 	id: string;
@@ -15,5 +15,5 @@ export interface MoveTemplate {
 	baseIterations: number;
 	cooldownTurns: number;
 	isBound: boolean;
-	operations: Array<OperationStep>;
+	operations: Array<Operation>;
 }

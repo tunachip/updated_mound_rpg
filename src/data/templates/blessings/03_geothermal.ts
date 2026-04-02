@@ -1,9 +1,9 @@
 // src/data/templates/blessings/03_geothermal.ts
 
 import {
-	constant,
-	eventStatusIs,
-	eventTargetIsOwner,
+	applyShields,
+	entityTargets,
+	listener,
 } from '../../../combat/operations';
 import type { BlessingTemplate } from './types.ts';
 
@@ -15,24 +15,22 @@ export const Geothermal: BlessingTemplate = {
 	cooldownTurns: 0,
 	isBound: false,
 	listeners: [
-		{
+		listener({
 			id: 'geothermal_gain_shield',
 			phase: 'side_effect',
-			trigger: 'apply_status',
-			conditions: [
-				eventTargetIsOwner(),
-				eventStatusIs('burn'),
-			],
-			effects: [
-				{
-					kind: 'enqueue_side_effect',
-					intent: {
-						kind: 'gain_shield',
-						target: { kind: 'listener_owner' },
-						amount: constant(1),
-					},
-				},
-			],
-		},
+			trigger: 'entity.hasStatus.burn',
+			handler: (ctx) => {
+				ctx.sideEffects.push(
+					...applyShields({
+						caster: ctx.owner,
+						move: ctx.move,
+						blessing: ctx.blessing,
+						change: ctx.change,
+						targets: entityTargets(ctx.owner),
+						amount: 1,
+					}),
+				);
+			},
+		}),
 	],
 };

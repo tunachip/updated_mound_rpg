@@ -38,7 +38,7 @@ function calculateDamage(
 			case 'absorbs':
 				calculated.healed += 1;
 				break;
-			case 'blocked':
+			case 'blocks':
 				calculated.blocked = true;
 				break;
 		}

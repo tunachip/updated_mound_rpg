@@ -15,7 +15,7 @@ export function changeMoveElement (
 		const before = target.element;
 		intents.push({
 			host: target,
-			field: ['maxHp'],
+			field: ['element'],
 			before: before,
 			after: element,
 		});

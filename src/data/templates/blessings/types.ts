@@ -1,7 +1,7 @@
 // src/data/templates/blessings/types.ts
 
 import type { DamageElement } from '../../../shared';
-import type { BlessingListener } from '../../../combat/operations';
+import type { Listener } from '../../../combat/operations';
 
 export interface BlessingTemplate {
 	id: string;
@@ -10,5 +10,5 @@ export interface BlessingTemplate {
 	element: DamageElement;
 	cooldownTurns: number;
 	isBound: boolean;
-	listeners: Array<BlessingListener>;
+	listeners: Array<Listener>;
 }

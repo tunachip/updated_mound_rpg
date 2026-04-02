@@ -16,6 +16,9 @@ export function attemptCurse (
 			const statusIntents = applyStatusTurns({
 				caster: ctx.caster,
 				move: ctx.move,
+				blessing: ctx.blessing,
+				status: 'curse',
+				amount: 1,
 				targets: {
 					entities: [target],
 					moves: [],

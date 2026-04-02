@@ -24,7 +24,7 @@ export function turnChoiceDisqualified (
 	entity: CombatEntity,
 	turnChoice: TurnChoice,
 ): boolean {
-	const move = turnChoice[0];
+	const move = turnChoice.move;
 	for (const status of ['sleep', 'stun', 'anger'] as const) {
 		if (isInvalid(entity, move, status)) {
 			return true;

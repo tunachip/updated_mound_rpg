@@ -1,6 +1,7 @@
 // src/combat/turn/turn-choices.ts
 
-import { TurnChoice, CombatEntity } from '../models';
+import type { TurnChoice, CombatEntity } from '../models';
+import { emptyTargets } from '../operations';
 
 export function makeTurnChoices (
 	entity: CombatEntity
@@ -21,7 +22,7 @@ function playerChoice (
 	// TODO: Create Player Choice Logic
 	return {
 		move: entity.moves[0],
-		targets: [],
+		targets: emptyTargets(),
 	};
 }
 
@@ -31,6 +32,6 @@ function aiChoice (
 	// TODO: Create AI Choice Logic
 	return {
 		move: entity.moves[0],
-		targets: [],
+		targets: emptyTargets(),
 	};
 }
