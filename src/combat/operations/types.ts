@@ -1,6 +1,6 @@
 // src/combat/operations/types.ts
 
-import type { DamageElement, EntityType, Status } from '../../shared';
+import type { DamageElement, EntityType, Status, ListenerType } from '../../shared';
 import type { CombatBlessing, CombatEntity, CombatMove } from '../models';
 import type { CombatState } from '../types.ts';
 import type { StateChange, StateChangeSignal } from './diff.ts';
@@ -34,8 +34,6 @@ export interface Operation {
 	breaks?: boolean;
 }
 
-export type ListenerPhase = 'interrupt' | 'side_effect';
-
 export interface ListenerContext {
 	combat: CombatState;
 	owner: CombatEntity;
@@ -52,7 +50,7 @@ export type ListenerHandler = (ctx: ListenerContext) => void;
 
 export interface Listener {
 	id: string;
-	phase: ListenerPhase;
+	phase: ListenerType;
 	trigger: StateChangeSignal;
 	conditions: Array<ListenerCondition>;
 	handler: ListenerHandler;

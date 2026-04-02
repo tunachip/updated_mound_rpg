@@ -80,7 +80,7 @@ function matchingListeners(
 	);
 }
 
-function resolveListenerPhase(
+function resolveListenerType(
 	combat: CombatState,
 	phase: Listener['phase'],
 	change: StateChange,
@@ -203,46 +203,41 @@ export function resolveStateChange(
 	change: StateChange,
 	move: CombatMove | null,
 ): ResolutionResult {
-	const interruptResult = resolveListenerPhase(combat, 'interrupt', change, move);
-	const applied: Array<StateChange> = [];
-	const cancelled: Array<StateChange> = [];
-	let breaks = interruptResult.breaks;
+	const interruptResult = resolveListenerType(combat, 'interrupt', change, move);
+	const resolvedChanges: ResolutionResult = {
+		applied: [],
+		cancelled: [],
+		breaks: interruptResult.breaks,
+	};
 
 	if (interruptResult.cancelled || isNoopStateChange(interruptResult.updatedChange)) {
-		cancelled.push(interruptResult.updatedChange);
+		resolvedChanges.cancelled.push(interruptResult.updatedChange);
 		const nested = resolveStateChanges(combat, interruptResult.sideEffects, move);
-		applied.push(...nested.applied);
-		cancelled.push(...nested.cancelled);
-		breaks = breaks || nested.breaks;
-		return { applied, cancelled, breaks };
+		resolvedChanges.applied.push(...nested.applied);
+		resolvedChanges.cancelled.push(...nested.cancelled);
+		resolvedChanges.breaks = resolvedChanges.breaks || nested.breaks;
+		return resolvedChanges;
 	}
 
 	applyStateChange(interruptResult.updatedChange);
-	applied.push(interruptResult.updatedChange);
+	resolvedChanges.applied.push(interruptResult.updatedChange);
 	combat.eventLog.push(getStateChangeSignal(interruptResult.updatedChange));
 
-	const sideEffectResult = resolveListenerPhase(
-		combat,
-		'side_effect',
-		interruptResult.updatedChange,
-		move,
-	);
-	breaks = breaks || sideEffectResult.breaks;
+	const sideEffectResult = resolveListenerType(combat, 'sideEffect', interruptResult.updatedChange, move,);
+	resolvedChanges.breaks = resolvedChanges.breaks || sideEffectResult.breaks;
 	if (sideEffectResult.cancelled) {
-		cancelled.push(sideEffectResult.updatedChange);
+		resolvedChanges.cancelled.push(sideEffectResult.updatedChange);
 	}
 
 	const nested = resolveStateChanges(
 		combat,
-		[...interruptResult.sideEffects,
-		 ...sideEffectResult.sideEffects
-		],
+		[...interruptResult.sideEffects, ...sideEffectResult.sideEffects],
 		move,
 	);
-	applied.push(...nested.applied);
-	cancelled.push(...nested.cancelled);
-	breaks = breaks || nested.breaks;
-	return { applied, cancelled, breaks };
+	resolvedChanges.applied.push(...nested.applied);
+	resolvedChanges.cancelled.push(...nested.cancelled);
+	resolvedChanges.breaks = resolvedChanges.breaks || nested.breaks;
+	return resolvedChanges;
 }
 
 export function resolveStateChanges(
@@ -250,21 +245,21 @@ export function resolveStateChanges(
 	changes: Array<StateChange>,
 	move: CombatMove | null,
 ): ResolutionResult {
-	const applied: Array<StateChange> = [];
-	const cancelled: Array<StateChange> = [];
-	let breaks = false;
-
+	const parsedChanges: ResolutionResult = {
+		applied: [],
+		cancelled: [],
+		breaks: false,
+	};
 	for (const change of mergeStateChanges(changes)) {
 		const result = resolveStateChange(combat, change, move);
-		applied.push(...result.applied);
-		cancelled.push(...result.cancelled);
-		breaks = breaks || result.breaks;
-		if (breaks) {
+		parsedChanges.applied.push(...result.applied);
+		parsedChanges.cancelled.push(...result.cancelled);
+		parsedChanges.breaks = parsedChanges.breaks || result.breaks;
+		if (parsedChanges.breaks) {
 			break;
 		}
 	}
-
-	return { applied, cancelled, breaks };
+	return parsedChanges;
 }
 
 export function resolveOperations(

@@ -81,3 +81,30 @@ export const ElementRelationships = {
 		force: 'weak',
 	},
 } as const;
+
+export const TargetTypes = [
+	'self',
+	'ally',
+	'enemy',
+	'entity',
+	'move',
+	'blessing',
+] as const;
+
+export const ModifierExpressions = [
+	'plus',
+	'minus',
+	'times',
+	'dividedBy',
+	'overwrittenBy',
+	'merge',
+	'insertAtStart',
+	'insertAtEnd',
+	'insertAtStartOfLoop',
+	'insertAtEndOfLoop',
+] as const;
+
+export const ListenerTypes = [
+	'interrupt',
+	'sideEffect',
+] as const;
