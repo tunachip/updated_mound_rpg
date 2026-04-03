@@ -4,7 +4,7 @@ import type { StateChange } from './diff.ts';
 import type { OperationContext } from '.';
 import type { CombatEntity } from '../models';
 import type { DamageElement } from '../../shared';
-import { DamageElements, ElementRelationships } from '../../shared';
+import { DamageElements, ElementRelationships } from '../../shared/index.ts';
 import { requireCtx } from './helpers.ts';
 
 interface CalculatedDamage {

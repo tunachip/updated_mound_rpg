@@ -10,11 +10,29 @@ import {
 import { emptyTargets } from './helpers.ts';
 import type {
 	Listener, ListenerContext,
-	Operation, OperationContext,
-	OperationResult, PreviewSequence,
-	RegisteredRuntimeListener, ResolutionResult
+	MoveMetadataField, Operation,
+	OperationContext, OperationResult,
+	PreviewSequence, RegisteredRuntimeListener,
+	ResolutionResult
 } from './types.ts';
 
+function isMoveMetadataField(
+	value: unknown,
+): value is MoveMetadataField {
+	return typeof value === 'object' &&
+		value !== null &&
+		'moveMetadata' in value;
+}
+
+function resolveOperationValue(
+	value: unknown,
+	move: CombatMove | null,
+): unknown {
+	if (!isMoveMetadataField(value) || !move) {
+		return value;
+	}
+	return move[value.moveMetadata];
+}
 
 function resolveOperationContext(
 	operation: Operation,
@@ -24,9 +42,18 @@ function resolveOperationContext(
 		? operation.resolveTargets(baseCtx)
 		: baseCtx.targets;
 
+	const resolvedCtx = operation.ctx
+		? Object.fromEntries(
+			Object.entries(operation.ctx).map(([key, value]) => [
+				key,
+				resolveOperationValue(value, baseCtx.move),
+			]),
+		)
+		: {};
+
 	return {
 		...baseCtx,
-		...(operation.ctx ?? {}),
+		...resolvedCtx,
 		targets: resolvedTargets,
 	};
 }
@@ -47,6 +74,31 @@ function createListenerContext(
 		cancel: false,
 		breakSequence: false,
 		sideEffects: [],
+	};
+}
+
+function executeListenerOperations(
+	listenerCtx: ListenerContext,
+	listener: Listener,
+): {
+	sideEffects: Array<StateChange>;
+} {
+	if (listener.operations.length === 0) {
+		return { sideEffects: [] };
+	}
+
+	const previewSequence = previewOperations(listener.operations, {
+		combat: listenerCtx.combat,
+		caster: listenerCtx.owner,
+		move: listenerCtx.move,
+		blessing: listenerCtx.blessing,
+		listenerContext: listenerCtx,
+		change: listenerCtx.change,
+		targets: emptyTargets(),
+	});
+
+	return {
+		sideEffects: previewSequence[previewSequence.length - 1] ?? [],
 	};
 }
 
@@ -107,13 +159,14 @@ function resolveListenerType(
 			pendingChange,
 			move,
 		);
-		registered.listener.handler(ctx);
+		const result = executeListenerOperations(ctx, registered.listener);
 		if (ctx.cancel) {
 			cancelled = true;
 		}
 		if (ctx.breakSequence) {
 			breaks = true;
 		}
+		sideEffects.push(...result.sideEffects);
 		sideEffects.push(...ctx.sideEffects);
 	}
 
@@ -157,9 +210,7 @@ export function previewOperations(
 			changes.push(...result.changes);
 			appliedForPreview.push(...applyStateChanges(result.changes));
 			sequence.push(mergeStateChanges(changes));
-			if (result.breaks) {
-				break;
-			}
+			if (result.breaks) break;
 		}
 	} finally {
 		for (const change of [...appliedForPreview].reverse()) {
@@ -171,7 +222,6 @@ export function previewOperations(
 			});
 		}
 	}
-
 	return sequence;
 }
 
@@ -180,15 +230,16 @@ export function hydrateRuntimeListeners(
 ): Array<RegisteredRuntimeListener> {
 	const staticListeners: Array<RegisteredRuntimeListener> = [];
 	const activeOwnerIds = new Set(
-		[...combat.entities.party, ...combat.entities.encounters].map((entity) => entity.id),
-	);
+		[...combat.entities.party,
+		 ...combat.entities.encounters
+	].map((entity) => entity.id));
 
 	for (const entity of [
 		...combat.entities.party,
 		...combat.entities.encounters
 	]) {
 		for (const blessing of entity.blessings) {
-			if (blessing.isExhausted) {
+			if (blessing.isExhausted || blessing.cooldownTurns > 0) {
 				continue;
 			}
 			for (const listener of blessing.listeners) {

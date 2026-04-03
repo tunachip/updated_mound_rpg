@@ -1,6 +1,6 @@
 // src/combat/models/constructor.ts
 
-import { createRecord, defaultStatusMaxTurns, Statuses, DamageElements } from '../../shared';
+import { createRecord, defaultStatusMaxTurns, Statuses, DamageElements } from '../../shared/index.ts';
 import type { Status, ModifierExpression } from '../../shared';
 import type { CombatEntity, CombatMove, CombatBlessing } from '../';
 import type { FragmentTemplate, EntityTemplate, MoveTemplate, BlessingTemplate } from '../../data/templates';
@@ -165,6 +165,7 @@ export function buildCombatEntity(
 		moves: [],
 		blessings: [],
 		turnChoices: [],
+		dodges: 0,
 	};
 }
 
@@ -183,7 +184,6 @@ export function buildCombatMove(
 		targetType: moveTemplate.targetType,
 		baseDamage: moveTemplate.baseDamage,
 		cooldownTurns: 0,
-		currentCooldownTurns: 0,
 		isBound: false,
 		baseIterations: moveTemplate.baseIterations,
 		ignoresStatuses: moveTemplate.ignoresStatuses,
@@ -202,12 +202,11 @@ export function buildCombatBlessing(
 ): CombatBlessing {
 	return {
 		id: blessing.id,
-		name: blessing.id,
+		name: blessing.name,
 		description: blessing.description,
 		element: blessing.element,
 		owner,
 		cooldownTurns: 0,
-		currentCooldownTurns: 0,
 		isExhausted: false,
 		isBound: false,
 		listeners: blessing.listeners,

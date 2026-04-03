@@ -15,10 +15,10 @@ export function applyCooldownTurns (
 		...ctx.targets.moves,
 		...ctx.targets.blessings
 	]) {
-		const before = target.currentCooldownTurns;
+		const before = target.cooldownTurns;
 		intents.push({
 			host: target,
-			field: ['currentCooldownTurns'],
+			field: ['cooldownTurns'],
 			before: before,
 			after: before + amount,
 		});
@@ -37,10 +37,10 @@ export function reduceCooldownTurns (
 		...ctx.targets.moves,
 		...ctx.targets.blessings
 	]) {
-		const before = target.currentCooldownTurns;
+		const before = target.cooldownTurns;
 		intents.push({
 			host: target,
-			field: ['currentCooldownTurns'],
+			field: ['cooldownTurns'],
 			before: before,
 			after: Math.max(0, before - amount),
 		});
@@ -59,11 +59,11 @@ export function extendCooldownTurns (
 		...ctx.targets.moves,
 		...ctx.targets.blessings
 	]) {
-		const before = target.currentCooldownTurns;
+		const before = target.cooldownTurns;
 		if (before > 0) {
 			intents.push({
 				host: target,
-				field: ['currentCooldownTurns'],
+				field: ['cooldownTurns'],
 				before: before,
 				after: before + amount,
 			});
@@ -83,8 +83,8 @@ export function negateCooldown (
 	]) {
 		intents.push({
 			host: target,
-			field: ['currentCooldownTurns'],
-			before: target.currentCooldownTurns,
+			field: ['cooldownTurns'],
+			before: target.cooldownTurns,
 			after: 0,
 		});
 	}

@@ -2,14 +2,14 @@
 
 import type { CombatEntity, TurnChoice } from '../models';
 import type { CombatState } from '..';
-import type { StateChange } from '../operations';
+import type { StateChange } from '../operations/index.ts';
 import {
 	baseOperationContext,
 	executeOperation,
 	hydrateRuntimeListeners,
 	mergeStateChanges,
 	resolveStateChanges,
-} from '../operations';
+} from '../operations/index.ts';
 import { turnChoiceDisqualified } from './turn-disqualifiers.ts';
 
 function executeTurnChoice(

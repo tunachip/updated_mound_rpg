@@ -3,37 +3,47 @@
 import * as readline from 'node:readline';
 import type { Key } from 'node:readline';
 
-import {
-	applyAttunement,
-	applyCurseChance,
-	applyShields,
-	applyStatusTurns,
-	attack,
-	operation,
-	previewOperations,
-	selfTargets,
-	type StateChange,
-} from '../src/combat/operations/index.ts';
-import {
-	DamageElements,
-	Statuses,
-	type DamageElement,
-	type MoveType,
-	type Status,
-} from '../src/shared/index.ts';
-import type {
-	CombatEntity,
-	CombatMove,
-	TurnChoice,
-} from '../src/combat/models/types.ts';
+import { buildCombatMove } from '../src/combat/models/constructor.ts';
+import { previewOperations, type StateChange } from '../src/combat/operations/index.ts';
+import { BasicAttackMoves } from '../src/data/templates/move/index.ts';
+import { DamageElements, Statuses, type DamageElement, type Status } from '../src/shared/index.ts';
+import type { CombatEntity, CombatMove, TurnChoice } from '../src/combat/models/types.ts';
 import type { CombatState } from '../src/combat/types.ts';
 
-function makeBooleanRecord<T extends string>(keys: readonly T[]): Record<T, boolean> {
-	return Object.fromEntries(keys.map((key) => [key, false])) as Record<T, boolean>;
+const ANSI = {
+	reset: '\x1b[0m',
+	bold: '\x1b[1m',
+	dim: '\x1b[2m',
+	green: '\x1b[32m',
+	red: '\x1b[31m',
+	yellow: '\x1b[33m',
+	cyan: '\x1b[36m',
+};
+
+type CellTone = 'green' | 'red' | 'yellow' | null;
+
+interface TableColumn {
+	label: string;
+	width: number;
+	render: (entity: CombatEntity, changes: Array<StateChange>) => {
+		value: string;
+		tone: CellTone;
+	};
 }
 
-function makeNumberRecord<T extends string>(keys: readonly T[], value = 0): Record<T, number> {
-	return Object.fromEntries(keys.map((key) => [key, value])) as Record<T, number>;
+function makeBooleanRecord <T extends string> (
+	keys: readonly T[]
+): Record<T, boolean> {
+	return Object.fromEntries(keys.map(
+		(key) => [key, false])) as Record<T, boolean>;
+}
+
+function makeNumberRecord <T extends string> (
+	keys: readonly T[],
+	value = 0
+): Record<T, number> {
+	return Object.fromEntries(keys.map(
+		(key) => [key, value])) as Record<T, number>;
 }
 
 function makeEntity(
@@ -46,7 +56,7 @@ function makeEntity(
 		name,
 		entityType: 'controlled',
 		hp: 10,
-		maxHp: 10,
+		maxHp: 20,
 		energy: 3,
 		maxEnergy: 3,
 		shields: 0,
@@ -66,46 +76,16 @@ function makeEntity(
 		moves: [],
 		blessings: [],
 		turnChoices: [],
+		dodges: 0,
 		...overrides,
 	};
 }
 
-function makeMove(
-	owner: CombatEntity,
-	id: string,
-	name: string,
-	description: string,
-	moveType: MoveType,
-	element: DamageElement,
-	operations: Array<CombatMove['operations'][number]>,
-): CombatMove {
-	return {
-		id,
-		name,
-		description,
-		element,
-		moveType,
-		owner,
-		targetType: {
-			type: 'enemy',
-			range: [1, 1],
-		},
-		baseDamage: 0,
-		baseIterations: 1,
-		cooldownTurns: 0,
-		currentCooldownTurns: 0,
-		isBound: false,
-		ignoresStatuses: [],
-		operations,
-		loopOperations: [],
-	};
-}
-
-function pathLabel(change: StateChange): string {
+function changeHostLabel(change: StateChange): string {
 	if ('name' in change.host) {
-		return `${change.host.name}.${change.field.join('.')}`;
+		return change.host.name;
 	}
-	return `combat.${change.field.join('.')}`;
+	return 'combat';
 }
 
 function formatValue(value: unknown): string {
@@ -119,54 +99,248 @@ function formatValue(value: unknown): string {
 }
 
 function formatChange(change: StateChange): string {
-	return `${pathLabel(change)}: ${formatValue(change.before)} -> ${formatValue(change.after)}`;
+	return `${changeHostLabel(change)}.${change.field.join('.')}: ${formatValue(change.before)} -> ${formatValue(change.after)}`;
 }
 
-function summarizeEntity(entity: CombatEntity, changes: Array<StateChange>): string[] {
-	const relevant = changes.filter(
-		(change) => 'id' in change.host && change.host.id === entity.id,
-	);
-	const current = new Map<string, StateChange>();
-	for (const change of relevant) {
-		current.set(change.field.join('.'), change);
+function readAtPath(source: unknown, path: Array<string>): unknown {
+	let current = source;
+	for (const key of path) {
+		if (current == null || typeof current !== 'object') {
+			return undefined;
+		}
+		current = (current as Record<string, unknown>)[key];
 	}
+	return current;
+}
 
-	const hpChange = current.get('hp');
-	const shieldChange = current.get('shields');
-	const energyChange = current.get('energy');
-	const attunements = DamageElements.filter((element) => {
-		const key = `attunedTo.${element}`;
-		return current.get(key)?.after === true || (!current.has(key) && entity.attunedTo[element]);
-	});
-	const statuses = Statuses.filter((status) => {
-		const key = `hasStatus.${status}`;
-		return current.get(key)?.after === true || (!current.has(key) && entity.hasStatus[status]);
-	});
+function getProjectedValue(
+	entity: CombatEntity,
+	path: Array<string>,
+	changes: Array<StateChange>,
+): unknown {
+	for (let i = changes.length - 1; i >= 0; i -= 1) {
+		const change = changes[i];
+		if (!('id' in change.host) || change.host.id !== entity.id) {
+			continue;
+		}
+		if (change.field.join('.') === path.join('.')) {
+			return change.after;
+		}
+	}
+	return readAtPath(entity, path);
+}
 
-	return [
-		`${entity.name}`,
-		`  HP      ${hpChange ? `${hpChange.before} -> ${hpChange.after}` : entity.hp}`,
-		`  Shields ${shieldChange ? `${shieldChange.before} -> ${shieldChange.after}` : entity.shields}`,
-		`  Energy  ${energyChange ? `${energyChange.before} -> ${energyChange.after}` : entity.energy}`,
-		`  Attuned ${attunements.length > 0 ? attunements.join(', ') : 'none'}`,
-		`  Status  ${statuses.length > 0 ? statuses.join(', ') : 'none'}`,
+function latestEntityChange(
+	entity: CombatEntity,
+	path: Array<string>,
+	changes: Array<StateChange>,
+): StateChange | null {
+	for (let i = changes.length - 1; i >= 0; i -= 1) {
+		const change = changes[i];
+		if (!('id' in change.host) || change.host.id !== entity.id) {
+			continue;
+		}
+		if (change.field.join('.') === path.join('.')) {
+			return change;
+		}
+	}
+	return null;
+}
+
+function cellToneFromChange(
+	change: StateChange | null,
+): CellTone {
+	if (!change) {
+		return null;
+	}
+	if (typeof change.before === 'number' && typeof change.after === 'number') {
+		if (change.after > change.before) {
+			return 'green';
+		}
+		if (change.after < change.before) {
+			return 'red';
+		}
+		return null;
+	}
+	if (typeof change.before === 'boolean' && typeof change.after === 'boolean') {
+		if (change.before === false && change.after === true) {
+			return 'green';
+		}
+		if (change.before === true && change.after === false) {
+			return 'red';
+		}
+		return null;
+	}
+	return change.before !== change.after ? 'yellow' : null;
+}
+
+function statusDisplay(
+	entity: CombatEntity,
+	changes: Array<StateChange>,
+	status: Status,
+): { value: string; tone: CellTone } {
+	const has = getProjectedValue(entity, ['hasStatus', status], changes) === true;
+	const turns = getProjectedValue(entity, ['statusTurns', status], changes);
+	const hasChange = latestEntityChange(entity, ['hasStatus', status], changes);
+	const turnChange = latestEntityChange(entity, ['statusTurns', status], changes);
+	return {
+		value: has ? String(turns) : '.',
+		tone: cellToneFromChange(turnChange) ?? cellToneFromChange(hasChange),
+	};
+}
+
+function simpleFieldColumn(
+	label: string,
+	width: number,
+	path: Array<string>,
+): TableColumn {
+	return {
+		label,
+		width,
+		render: (entity, changes) => {
+			const change = latestEntityChange(entity, path, changes);
+			const value = getProjectedValue(entity, path, changes);
+			return {
+				value: typeof value === 'boolean' ? (value ? '1' : '0') : String(value),
+				tone: cellToneFromChange(change),
+			};
+		},
+	};
+}
+
+function attunementColumn(
+	element: DamageElement,
+): TableColumn {
+	return {
+		label: element.slice(0, 2).toUpperCase(),
+		width: 2,
+		render: (entity, changes) => {
+			const path = ['attunedTo', element];
+			const change = latestEntityChange(entity, path, changes);
+			const value = getProjectedValue(entity, path, changes) === true ? '1' : '.';
+			return {
+				value,
+				tone: cellToneFromChange(change),
+			};
+		},
+	};
+}
+
+const STATUS_LABELS: Record<Status, string> = {
+	burn: 'BU',
+	decay: 'DE',
+	wound: 'WO',
+	curse: 'CU',
+	regen: 'RE',
+	focus: 'FC',
+	strong: 'SG',
+	tough: 'TG',
+	slick: 'SL',
+	barbs: 'BA',
+	anger: 'AN',
+	stun: 'ST',
+	sleep: 'SP',
+	sick: 'SI',
+};
+
+function statusColumn(
+	status: Status,
+): TableColumn {
+	return {
+		label: STATUS_LABELS[status],
+		width: 2,
+		render: (entity, changes) => statusDisplay(entity, changes, status),
+	};
+}
+
+function padCell(value: string, width: number): string {
+	if (value.length >= width) {
+		return value.slice(0, width);
+	}
+	return `${value}${' '.repeat(width - value.length)}`;
+}
+
+function colorCell(
+	value: string,
+	tone: CellTone,
+): string {
+	switch (tone) {
+		case 'green':
+			return `${ANSI.green}${value}${ANSI.reset}`;
+		case 'red':
+			return `${ANSI.red}${value}${ANSI.reset}`;
+		case 'yellow':
+			return `${ANSI.yellow}${value}${ANSI.reset}`;
+		default:
+			return value;
+	}
+}
+
+function renderTable(
+	entities: Array<CombatEntity>,
+	changes: Array<StateChange>,
+	selectedTargetId: string,
+): string[] {
+	const columns: Array<TableColumn> = [
+		simpleFieldColumn('HP', 3, ['hp']),
+		simpleFieldColumn('MH', 3, ['maxHp']),
+		simpleFieldColumn('EN', 3, ['energy']),
+		simpleFieldColumn('ME', 3, ['maxEnergy']),
+		simpleFieldColumn('SH', 3, ['shields']),
+		simpleFieldColumn('IT', 3, ['extraIterations']),
+		simpleFieldColumn('DG', 3, ['dodges']),
+		simpleFieldColumn('CU%', 3, ['curseChance']),
+		simpleFieldColumn('DE', 2, ['isDead']),
+		simpleFieldColumn('BR', 2, ['shieldsBroken']),
+		simpleFieldColumn('LD', 3, ['lastDamageTaken']),
+		simpleFieldColumn('MD', 3, ['maxDamageTaken']),
+		simpleFieldColumn('TD', 3, ['totalDamageTaken']),
+		...DamageElements.map(attunementColumn),
+		...Statuses.map(statusColumn),
 	];
+
+	const nameWidth = Math.max(...entities.map((entity) => entity.name.length), 'Entity'.length) + 2;
+	const header = [
+		`${ANSI.bold}${padCell('Entity', nameWidth)}${ANSI.reset}`,
+		...columns.map((column) =>
+			`${ANSI.bold}${padCell(column.label, column.width)}${ANSI.reset}`,
+		),
+	].join(' ');
+
+	const rows = entities.map((entity) => {
+		const nameCell = padCell(
+			entity.id === selectedTargetId ? `> ${entity.name}` : `  ${entity.name}`,
+			nameWidth,
+		);
+		const styledName = entity.id === selectedTargetId
+			? `${ANSI.cyan}${ANSI.bold}${nameCell}${ANSI.reset}`
+			: nameCell;
+		const cells = columns.map((column) => {
+			const cell = column.render(entity, changes);
+			return colorCell(padCell(cell.value, column.width), cell.tone);
+		});
+		return [styledName, ...cells].join(' ');
+	});
+
+	return [header, ...rows];
 }
 
 function renderScreen(
-	_combat: CombatState,
-	caster: CombatEntity,
-	target: CombatEntity,
+	combat: CombatState,
+	player: CombatEntity,
+	encounters: Array<CombatEntity>,
 	moves: Array<CombatMove>,
-	selectedIndex: number,
+	selectedMoveIndex: number,
+	selectedTargetIndex: number,
 ): string {
-	const selectedMove = moves[selectedIndex];
+	const selectedMove = moves[selectedMoveIndex];
+	const selectedTarget = encounters[selectedTargetIndex];
 	const previewSequence = previewOperations(selectedMove.operations, {
-		combat: _combat,
-		caster,
+		combat,
+		caster: player,
 		move: selectedMove,
 		targets: {
-			entities: [target],
+			entities: [selectedTarget],
 			moves: [],
 			blessings: [],
 		},
@@ -175,17 +349,24 @@ function renderScreen(
 
 	const lines: string[] = [];
 	lines.push('Preview TUI');
-	lines.push('Use ↑/↓ or j/k to switch moves. Press q to quit.');
+	lines.push('Move: ↑/↓ or j/k | Target: ←/→ or h/l | q to quit');
 	lines.push('');
-	lines.push('Move Choices');
+	lines.push('Basic Attacks');
 	for (let i = 0; i < moves.length; i += 1) {
-		const prefix = i === selectedIndex ? '>' : ' ';
-		lines.push(`${prefix} ${moves[i].name} | ${moves[i].description}`);
+		const prefix = i === selectedMoveIndex ? '>' : ' ';
+		lines.push(`${prefix} ${moves[i].name} | ${moves[i].element} | dmg ${moves[i].baseDamage} | iter ${moves[i].baseIterations}`);
 	}
 	lines.push('');
-	lines.push('Projected Final State');
-	lines.push(...summarizeEntity(caster, finalPreview));
-	lines.push(...summarizeEntity(target, finalPreview));
+	lines.push('Targets');
+	for (let i = 0; i < encounters.length; i += 1) {
+		const prefix = i === selectedTargetIndex ? '>' : ' ';
+		lines.push(`${prefix} ${encounters[i].name}`);
+	}
+	lines.push('');
+	lines.push(`Selected Preview: ${selectedMove.name} -> ${selectedTarget.name}`);
+	lines.push('');
+	lines.push('Projected Board');
+	lines.push(...renderTable([player, ...encounters], finalPreview, selectedTarget.id));
 	lines.push('');
 	lines.push('Diff Sequence');
 
@@ -206,128 +387,70 @@ function renderScreen(
 
 function buildFixture(): {
 	combat: CombatState;
-	caster: CombatEntity;
-	target: CombatEntity;
+	player: CombatEntity;
+	encounters: Array<CombatEntity>;
 	moves: Array<CombatMove>;
 } {
-	const caster = makeEntity('entity_player', 'Mosscaller', {
+	const player = makeEntity('entity_player', 'Mosscaller', {
 		entityType: 'controlled',
-		hp: 9,
-		maxHp: 10,
-		energy: 3,
-		maxEnergy: 3,
-		shields: 1,
+		hp: 18,
+		maxHp: 18,
+		energy: 7,
+		maxEnergy: 7,
 	});
 
-	const target = makeEntity('entity_enemy', 'Ash Hound', {
-		entityType: 'forecasted',
-		hp: 11,
-		maxHp: 11,
-		energy: 2,
-		maxEnergy: 2,
-		shields: 2,
+	const encounters = DamageElements.map((element, index) => {
+		const encounter = makeEntity(
+			`entity_enemy_${element}`,
+			`${element[0].toUpperCase()}${element.slice(1)} Eidolon`,
+			{
+				entityType: 'forecasted',
+				hp: 12 + index,
+				maxHp: 20 + index,
+				energy: 2,
+				maxEnergy: 2,
+				shields: index % 3,
+			});
+		encounter.attunedTo[element] = true;
+		return encounter;
 	});
-	target.attunedTo.fire = true;
 
-	const tidalBreak = makeMove(
-		caster,
-		'move_tidal_break',
-		'Tidal Break',
-		'Attune to Water, soak the target, then strike.',
-		'attack',
-		'water',
-		[
-			operation(applyAttunement, {
-				ctx: { element: 'water' },
-				targets: selfTargets(),
-			}),
-			operation(applyStatusTurns, {
-				ctx: { status: 'slick', amount: 2 },
-			}),
-			operation(attack, {
-				ctx: { element: 'water', amount: 3 },
-			}),
-		],
+	const moves = BasicAttackMoves.map((template) =>
+		buildCombatMove(template, [], player),
 	);
+	player.moves = moves;
 
-	const emberWard = makeMove(
-		caster,
-		'move_ember_ward',
-		'Ember Ward',
-		'Kindle fire, burn the target, then gain shields.',
-		'utility',
-		'fire',
-		[
-			operation(applyAttunement, {
-				ctx: { element: 'fire' },
-				targets: selfTargets(),
-			}),
-			operation(applyStatusTurns, {
-				ctx: { status: 'burn', amount: 2 },
-			}),
-			operation(attack, {
-				ctx: { element: 'fire', amount: 2 },
-			}),
-			operation(applyShields, {
-				ctx: { amount: 2 },
-				targets: selfTargets(),
-			}),
-		],
-	);
-
-	const graveNeedle = makeMove(
-		caster,
-		'move_grave_needle',
-		'Grave Needle',
-		'Raise curse chance, apply curse, then strike with force.',
-		'utility',
-		'force',
-		[
-			operation(applyCurseChance, {
-				ctx: { amount: 3 },
-			}),
-			operation(applyStatusTurns, {
-				ctx: { status: 'curse', amount: 1 },
-			}),
-			operation(attack, {
-				ctx: { element: 'force', amount: 2 },
-			}),
-		],
-	);
-
-	const moves = [tidalBreak, emberWard, graveNeedle];
-	caster.moves = moves;
-
-	const choiceTargets = {
-		entities: [target],
+	const defaultTargeting = {
+		entities: [encounters[0]],
 		moves: [],
 		blessings: [],
 	};
-	caster.turnChoices = moves.map((move) => ({
+	player.turnChoices = moves.map((move) => ({
 		move,
-		targets: choiceTargets,
+		targets: defaultTargeting,
 	})) as Array<TurnChoice>;
 
 	const combat: CombatState = {
 		turn: 1,
 		entities: {
-			party: [caster],
-			encounters: [target],
+			party: [player],
+			encounters,
 		},
 		listeners: [],
 		eventLog: [],
 	};
 
-	return { combat, caster, target, moves };
+	return { combat, player, encounters, moves };
 }
 
 function runDumpMode(): void {
 	const fixture = buildFixture();
 	const screen = renderScreen(
 		fixture.combat,
-		fixture.caster,
-		fixture.target,
+		fixture.player,
+		fixture.encounters,
 		fixture.moves,
+		0,
 		0,
 	);
 	process.stdout.write(`${screen}\n`);
@@ -335,17 +458,19 @@ function runDumpMode(): void {
 
 function runInteractiveMode(): void {
 	const fixture = buildFixture();
-	let selectedIndex = 0;
+	let selectedMoveIndex = 0;
+	let selectedTargetIndex = 0;
 
 	const redraw = (): void => {
 		process.stdout.write('\x1b[2J\x1b[H');
 		process.stdout.write(
 			`${renderScreen(
 				fixture.combat,
-				fixture.caster,
-				fixture.target,
+				fixture.player,
+				fixture.encounters,
 				fixture.moves,
-				selectedIndex,
+				selectedMoveIndex,
+				selectedTargetIndex,
 			)}\n`,
 		);
 	};
@@ -369,11 +494,19 @@ function runInteractiveMode(): void {
 			process.exit(0);
 		}
 		if (key.name === 'down' || input === 'j') {
-			selectedIndex = (selectedIndex + 1) % fixture.moves.length;
+			selectedMoveIndex = (selectedMoveIndex + 1) % fixture.moves.length;
 			redraw();
 		}
 		if (key.name === 'up' || input === 'k') {
-			selectedIndex = (selectedIndex - 1 + fixture.moves.length) % fixture.moves.length;
+			selectedMoveIndex = (selectedMoveIndex - 1 + fixture.moves.length) % fixture.moves.length;
+			redraw();
+		}
+		if (key.name === 'right' || input === 'l') {
+			selectedTargetIndex = (selectedTargetIndex + 1) % fixture.encounters.length;
+			redraw();
+		}
+		if (key.name === 'left' || input === 'h') {
+			selectedTargetIndex = (selectedTargetIndex - 1 + fixture.encounters.length) % fixture.encounters.length;
 			redraw();
 		}
 	});

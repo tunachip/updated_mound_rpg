@@ -19,11 +19,19 @@ export interface CapturedEntityBoundary {
 	originalOrder: Array<string>;
 }
 
+export interface MoveMetadataField {
+	moveMetadata: keyof Pick<
+		CombatMove,
+		'baseDamage' | 'baseIterations' | 'cooldownTurns' | 'element'
+	>;
+}
+
 export interface OperationContext {
 	combat: CombatState;
 	caster: CombatEntity;
 	move: CombatMove | null;
 	blessing?: CombatBlessing | null;
+	listenerContext?: ListenerContext;
 	change?: StateChange;
 	targets: TargetMatrix;
 	entityType?: EntityType;
@@ -42,13 +50,23 @@ export interface OperationContext {
 	capturedEntityBoundary?: CapturedEntityBoundary;
 }
 
+export interface OperationCtxInput extends Omit<
+	OperationContext,
+	'amount' | 'element' | 'entityIndex' | 'relativeEntityIndex'
+> {
+	amount?: number | MoveMetadataField;
+	element?: DamageElement | MoveMetadataField;
+	entityIndex?: number | MoveMetadataField;
+	relativeEntityIndex?: number | MoveMetadataField;
+}
+
 export type OperationHandler = (ctx: OperationContext) => Array<StateChange>;
 export type TargetResolver = (ctx: OperationContext) => TargetMatrix;
 
 export interface Operation {
 	name: string;
 	handler: OperationHandler;
-	ctx?: Partial<Omit<OperationContext, 'caster' | 'move' | 'blessing' | 'change' | 'targets'>>;
+	ctx?: Partial<Omit<OperationCtxInput, 'caster' | 'move' | 'blessing' | 'change' | 'targets'>>;
 	resolveTargets?: TargetResolver;
 	breaks?: boolean;
 }
@@ -65,14 +83,13 @@ export interface ListenerContext {
 }
 
 export type ListenerCondition = (ctx: ListenerContext) => boolean;
-export type ListenerHandler = (ctx: ListenerContext) => void;
 
 export interface Listener {
 	id: string;
 	phase: ListenerType;
 	trigger: StateChangeSignal;
 	conditions: Array<ListenerCondition>;
-	handler: ListenerHandler;
+	operations: Array<Operation>;
 }
 
 export interface RegisteredRuntimeListener {

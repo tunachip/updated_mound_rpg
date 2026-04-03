@@ -1,7 +1,7 @@
 // src/combat/turn/turn-audit.ts
 
 import type { Status, DamageElement } from '../../shared';
-import { Statuses, DamageElements } from '../../shared';
+import { Statuses, DamageElements } from '../../shared/index.ts';
 import type { CombatEntity, CombatMove, CombatBlessing } from '../models';
 
 interface TurnAudits {
@@ -24,7 +24,7 @@ export function audit (
 			...entity.moves,
 			...entity.blessings
 		].filter(
-			effect => effect.currentCooldownTurns > 0
+			effect => effect.cooldownTurns > 0
 		)
 	};
 }

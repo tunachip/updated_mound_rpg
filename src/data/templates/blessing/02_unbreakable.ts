@@ -1,12 +1,14 @@
 // src/data/templates/blessings/02_unbreakable.ts
 
 import {
-	blessingTargets,
 	changeAfterAtMost,
 	changeHostIsOwner,
 	exhaustBlessings,
 	listener,
-} from '../../../combat/operations';
+	operation,
+	setPendingChangeAfter,
+	selfBlessingTargets,
+} from '../../../combat/operations/index.ts';
 import type { BlessingTemplate } from './types.ts';
 
 export const Unbreakable: BlessingTemplate = {
@@ -15,7 +17,6 @@ export const Unbreakable: BlessingTemplate = {
 	description:
 		'When owner would die, instead set their HP to 1 and exhaust this blessing.',
 	element: 'stone',
-	cooldownTurns: 0,
 	isBound: false,
 	listeners: [
 		listener({
@@ -26,19 +27,14 @@ export const Unbreakable: BlessingTemplate = {
 				changeHostIsOwner(),
 				changeAfterAtMost(0),
 			],
-			handler: (ctx) => {
-				ctx.change.after = 1;
-				ctx.sideEffects.push(
-					...exhaustBlessings({
-						combat: ctx.combat,
-						caster: ctx.owner,
-						move: ctx.move,
-						blessing: ctx.blessing,
-						change: ctx.change,
-						targets: blessingTargets(ctx.blessing),
-					}),
-				);
-			},
+			operations: [
+				operation(setPendingChangeAfter, {
+					ctx: { amount: 1 },
+				}),
+				operation(exhaustBlessings, {
+					targets: selfBlessingTargets(),
+				}),
+			],
 		}),
 	],
 };

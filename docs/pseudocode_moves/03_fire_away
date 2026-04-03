@@ -1,0 +1,22 @@
+# docs/pseudocode_moves/03_fire_away
+
+id							move_fire_away
+name						Fire Away
+element					fire
+moveType				attack
+targetType			enemy
+baseDamage			2
+baseIterations	1
+operations
+	- applyAttune (
+			element: this.element,
+			targets: [caster]
+		);
+
+loopOperations
+	- attack (
+			baseDamage: this.baseDamage,
+			baseIterations: this.baseIterations,
+			element: this.element,
+			targets: resolveTargets(this.owner, this.targetType),
+		);

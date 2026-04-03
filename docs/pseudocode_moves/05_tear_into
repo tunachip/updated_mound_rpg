@@ -1,0 +1,22 @@
+# docs/pseudocode_moves/05_tear_into
+
+id							move_tear_into
+name						Tear Into
+element					vital
+moveType				attack
+targetType			enemy
+baseDamage			2
+baseIterations	1
+operations
+	- applyAttune (
+			element: this.element,
+			targets: [caster]
+		);
+
+loopOperations
+	- attack (
+			baseDamage: this.baseDamage,
+			baseIterations: this.baseIterations,
+			element: this.element,
+			targets: resolveTargets(this.owner, this.targetType),
+		);

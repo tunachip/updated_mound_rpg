@@ -1,0 +1,22 @@
+# docs/pseudocode_moves/01_roll_tide
+
+id							move_roll_tide
+name						Roll Tide
+element					water
+moveType				attack
+targetType			enemy
+baseDamage			2
+baseIterations	1
+operations
+	- applyAttune (
+			element: this.element,
+			targets: [caster]
+		);
+
+loopOperations
+	- attack (
+			baseDamage: this.baseDamage,
+			baseIterations: this.baseIterations,
+			element: this.element,
+			targets: resolveTargets(this.owner, this.targetType),
+		);

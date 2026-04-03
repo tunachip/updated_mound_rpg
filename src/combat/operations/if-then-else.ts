@@ -8,13 +8,13 @@ import { requireCtx } from './helpers.ts';
 
 function signalWasEmitted(
 	ctx: OperationContext,
-	signal: string,
 ): boolean {
+	requireCtx('signalWasEmitted', ctx, ['signal']);
 	const changes = ctx.changes ?? [];
 	return changes.some(
 		(change) =>
-			change.signal === signal ||
-			getStateChangeSignal(change) === signal,
+			change.signal === ctx.signal ||
+			getStateChangeSignal(change) === ctx.signal,
 	);
 }
 
@@ -23,7 +23,7 @@ export function ifThenElse(
 ): Array<StateChange> {
 	requireCtx('ifThenElse', ctx, ['signal', 'operations']);
 
-	const branch = signalWasEmitted(ctx, ctx.signal)
+	const branch = signalWasEmitted(ctx)
 		? ctx.operations
 		: (ctx.elseOperations ?? []);
 	if (branch.length === 0) {

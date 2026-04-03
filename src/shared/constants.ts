@@ -52,7 +52,7 @@ export const ElementRelationships = {
 		thunder: 'weak',
 	},
 	fire: {
-		water: 'resists',
+		water: 'absorbs',
 		stone: 'resists',
 		plant: 'weak',
 		vital: 'weak',

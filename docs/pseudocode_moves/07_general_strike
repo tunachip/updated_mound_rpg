@@ -1,0 +1,22 @@
+# docs/pseudocode_moves/07_general_strike
+
+id							move_general_strike
+name						General Strike
+element					thunder
+moveType				attack
+targetType			enemy
+baseDamage			2
+baseIterations	1
+operations
+	- applyAttune (
+			element: this.element,
+			targets: [caster]
+		);
+
+loopOperations
+	- attack (
+			baseDamage: this.baseDamage,
+			baseIterations: this.baseIterations,
+			element: this.element,
+			targets: resolveTargets(this.owner, this.targetType),
+		);

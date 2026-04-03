@@ -2,9 +2,10 @@
 
 import {
 	applyShields,
-	entityTargets,
 	listener,
-} from '../../../combat/operations';
+	operation,
+	ownerTargets,
+} from '../../../combat/operations/index.ts';
 import type { BlessingTemplate } from './types.ts';
 
 export const Geothermal: BlessingTemplate = {
@@ -12,26 +13,18 @@ export const Geothermal: BlessingTemplate = {
 	name: 'Geothermal',
 	description: 'When owner gains Burn, owner gains 1 Shield.',
 	element: 'fire',
-	cooldownTurns: 0,
 	isBound: false,
 	listeners: [
 		listener({
 			id: 'geothermal_gain_shield',
 			phase: 'sideEffect',
 			trigger: 'entity.hasStatus.burn',
-			handler: (ctx) => {
-				ctx.sideEffects.push(
-					...applyShields({
-						combat: ctx.combat,
-						caster: ctx.owner,
-						move: ctx.move,
-						blessing: ctx.blessing,
-						change: ctx.change,
-						targets: entityTargets(ctx.owner),
-						amount: 1,
-					}),
-				);
-			},
+			operations: [
+				operation(applyShields, {
+					ctx: { amount: 1 },
+					targets: ownerTargets(),
+				}),
+			],
 		}),
 	],
 };

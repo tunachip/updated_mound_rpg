@@ -4,7 +4,7 @@ import type { CombatBlessing, CombatEntity, CombatMove } from '../models';
 import type {
 	Listener,
 	ListenerCondition,
-	ListenerHandler,
+	MoveMetadataField,
 	Operation,
 	OperationContext,
 	OperationHandler,
@@ -71,6 +71,13 @@ export function ownerTargets(
 	};
 }
 
+export function selfBlessingTargets(
+): TargetResolver {
+	return (ctx) => ctx.blessing
+		? makeTargets({ blessings: [ctx.blessing] })
+		: emptyTargets();
+}
+
 export function hostTargets(
 ): TargetResolver {
 	return (ctx) => {
@@ -127,19 +134,25 @@ export function operation(
 	};
 }
 
+export function moveMetadata(
+	field: MoveMetadataField['moveMetadata'],
+): MoveMetadataField {
+	return { moveMetadata: field };
+}
+
 export function listener(options: {
 	id?: string;
 	phase: Listener['phase'];
 	trigger: Listener['trigger'];
 	conditions?: Array<ListenerCondition>;
-	handler: ListenerHandler;
+	operations: Array<Operation>;
 }): Listener {
 	return {
 		id: options.id ?? `${options.phase}:${options.trigger}`,
 		phase: options.phase,
 		trigger: options.trigger,
 		conditions: options.conditions ?? [],
-		handler: options.handler,
+		operations: options.operations,
 	};
 }
 

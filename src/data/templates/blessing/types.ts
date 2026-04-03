@@ -8,7 +8,6 @@ export interface BlessingTemplate {
 	name: string;
 	description: string;
 	element: DamageElement;
-	cooldownTurns: number;
 	isBound: boolean;
 	listeners: Array<Listener>;
 }
