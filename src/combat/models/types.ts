@@ -25,6 +25,7 @@ export interface CombatEntity {
 	extraIterations: number;
 	isDead: boolean;
 	shieldsBroken: boolean;
+	isBloody: boolean;
 	curseChance: number;
 	attunedTo: Record<DamageElement, boolean>;
 	turnsAttuned: Record<DamageElement, number>;
@@ -39,6 +40,7 @@ export interface CombatEntity {
 	blessings: Array<CombatBlessing>;
 	turnChoices: Array<TurnChoice>;
 	dodges: number;
+	knowledge: Array<any>;
 }
 
 export interface CombatMove {

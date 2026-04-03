@@ -12,7 +12,7 @@ import {
 } from '../operations/index.ts';
 import { turnChoiceDisqualified } from './turn-disqualifiers.ts';
 
-function executeTurnChoice(
+export function executeTurnChoice(
 	combat: CombatState,
 	caster: CombatEntity,
 	turnChoice: TurnChoice,

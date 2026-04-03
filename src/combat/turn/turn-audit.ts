@@ -7,6 +7,7 @@ import type { CombatEntity, CombatMove, CombatBlessing } from '../models';
 interface TurnAudits {
 	attunements: Array<DamageElement>;
 	statuses: Array<Status>;
+	ignoresStatuses: Array<Status>;
 	cooldowns: Array<CombatMove|CombatBlessing>;
 }
 
@@ -20,11 +21,14 @@ export function audit (
 		statuses: Statuses.filter(
 			status => entity.hasStatus[status] === true
 		),
+		ignoresStatuses: Statuses.filter(
+			status => entity.ignoresStatusTurns[status] > 0
+		),
 		cooldowns: [
 			...entity.moves,
 			...entity.blessings
 		].filter(
 			effect => effect.cooldownTurns > 0
-		)
+		),
 	};
 }

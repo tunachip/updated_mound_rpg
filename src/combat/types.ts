@@ -10,6 +10,7 @@ export interface EntityMatrix {
 
 export interface CombatState {
 	turn: number;
+	hasPriority: 'party' | 'encounters';
 	entities: EntityMatrix;
 	listeners: Array<RegisteredRuntimeListener>;
 	eventLog: Array<string>;

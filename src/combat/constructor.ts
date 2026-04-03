@@ -3,6 +3,7 @@
 import type { CombatState } from '.';
 import type { EntityTemplate } from '../data/templates';
 import { buildCombatEntities } from './models/constructor.ts';
+import { randomNumber } from './operations';
 
 export function buildCombatState(
 	party: Array<EntityTemplate>,
@@ -10,6 +11,7 @@ export function buildCombatState(
 ): CombatState {
 	return {
 		turn: 0,
+		hasPriority: (['party', 'encounters'] as const)[randomNumber(0,1)],
 		entities: {
 			encounters: buildCombatEntities(encounters),
 			party: buildCombatEntities(party),
