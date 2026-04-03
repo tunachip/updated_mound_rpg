@@ -1,6 +1,6 @@
 // src/combat/combat-loop.ts
 
-import type { CombatState } from '.';
+import type { CombatEntity, CombatState, TurnChoice } from '.';
 import {
 	makeTurnChoices,
 	audit,
@@ -13,11 +13,12 @@ import {
 	cleanupEntity,
 } from './turn';
 
+type EntityGroup = "party" | "encounters";
 
 function setTurnChoices(
-	combat,
-	entity,
-	turnChoices
+	combat: CombatState,
+	entity: CombatEntity,
+	turnChoices: Array<TurnChoice>,
 ) {
 	for (const [turnChoice, isPlayerKnown] of turnChoices) {
 		entity.turnChoices.push(turnChoice);
@@ -48,8 +49,10 @@ export function combatLoop(
 
 		// for team of combat.entities
 		let turnOrder = [combat.entities.encounters];
+		let gainsPriority: EntityGroup = 'encounters';
 		if (combat.hasPriority === 'party') {
 			turnOrder = [combat.entities.party, ...turnOrder];
+			gainsPriority = 'party';
 		} else {
 			turnOrder = [...turnOrder, combat.entities.party];
 		}
@@ -110,8 +113,12 @@ export function combatLoop(
 				// cleanup temp vars on entity
 				cleanupEntity(entity);
 
+				//end entity turn
 			}
+			// end team turns
 		}
 		// turn-update-combatState
+		combat.hasPriority = gainsPriority;
+		combat.turn += 1;
 	} 
 }
