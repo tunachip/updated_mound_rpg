@@ -1,23 +1,30 @@
 // src/combat/operations/loop.ts
 
 import type { StateChange } from './diff.ts';
-import type { OperationContext } from '.';
+import type { Operation, OperationContext } from '.';
+import { previewOperations } from './resolver.ts';
 import { requireCtx } from './helpers.ts';
 
-export function loop (
+export function loop(
 	ctx: OperationContext
 ): Array<StateChange> {
-	const intents: Array<StateChange> = [];
-	requireCtx('loop', ctx, ['move', 'operations']);
-	const { move, operations } = ctx;
+	requireCtx('loop', ctx, ['move']);
 
-	const baseTimes = ctx.move?.baseIterations ?? 0;
-	const times = baseTimes + ctx.caster.extraIterations;
-	for (let i = 0; i>times; i++) {
-		// loop the operations for however many total Iterations calculated
-		for (const operation of operations) {
-
-		}
+	const operations = ctx.operations ?? ctx.move.loopOperations;
+	if (operations.length === 0) {
+		return [];
 	}
-	return intents;
+
+	const times = Math.max(0, ctx.move.baseIterations + ctx.caster.extraIterations);
+	if (times === 0) {
+		return [];
+	}
+
+	const expandedOperations: Array<Operation> = [];
+	for (let i = 0; i < times; i += 1) {
+		expandedOperations.push(...operations);
+	}
+
+	const previewSequence = previewOperations(expandedOperations, ctx);
+	return previewSequence[previewSequence.length - 1] ?? [];
 }

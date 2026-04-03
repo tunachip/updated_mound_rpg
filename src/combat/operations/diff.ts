@@ -1,8 +1,10 @@
 // src/combat/operations/diff.ts
 
+import type { RegisteredRuntimeListener } from './types.ts';
+import type { CombatState } from '..';
 import type { CombatBlessing, CombatEntity, CombatMove } from '../models';
 
-export type StateChangeHost = CombatEntity | CombatMove | CombatBlessing;
+export type StateChangeHost = CombatEntity | CombatMove | CombatBlessing | CombatState;
 export type StateChangeSignal = string;
 
 export interface StateChange {
@@ -10,6 +12,9 @@ export interface StateChange {
 	field: Array<string>;
 	before: unknown;
 	after: unknown;
+	signal?: StateChangeSignal;
+	apply?: boolean;
+	registeredListener?: RegisteredRuntimeListener;
 }
 
 function isCombatEntity(
@@ -40,12 +45,18 @@ function hostPrefix(
 export function getStateChangeSignal(
 	change: StateChange
 ): StateChangeSignal {
+	if (change.signal) {
+		return change.signal;
+	}
 	return `${hostPrefix(change.host)}.${change.field.join('.')}`;
 }
 
 export function getStateChangeKey(
 	change: StateChange
 ): string {
+	if (change.signal) {
+		return `${hostPrefix(change.host)}:${change.host.id}:signal:${change.signal}`;
+	}
 	return `${hostPrefix(change.host)}:${change.host.id}:${change.field.join('.')}`;
 }
 
@@ -69,10 +80,16 @@ export function mergeStateChanges(
 				field: [...change.field],
 				before: change.before,
 				after: change.after,
+				signal: change.signal,
+				apply: change.apply,
+				registeredListener: change.registeredListener,
 			});
 			continue;
 		}
 		existing.after = change.after;
+		existing.signal = change.signal ?? existing.signal;
+		existing.apply = change.apply ?? existing.apply;
+		existing.registeredListener = change.registeredListener ?? existing.registeredListener;
 	}
 
 	return [...merged.values()].filter(
@@ -93,6 +110,9 @@ function getParentValue(
 export function applyStateChange(
 	change: StateChange
 ): void {
+	if (change.apply === false) {
+		return;
+	}
 	if (change.field.length === 0) {
 		throw new Error('StateChange field path must contain at least one segment.');
 	}

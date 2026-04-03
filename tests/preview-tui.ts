@@ -86,7 +86,7 @@ function makeMove(
 		element,
 		moveType,
 		owner,
-		targeting: {
+		targetType: {
 			type: 'enemy',
 			range: [1, 1],
 		},
@@ -97,6 +97,7 @@ function makeMove(
 		isBound: false,
 		ignoresStatuses: [],
 		operations,
+		loopOperations: [],
 	};
 }
 

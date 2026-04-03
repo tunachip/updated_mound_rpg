@@ -17,7 +17,7 @@ export const Geothermal: BlessingTemplate = {
 	listeners: [
 		listener({
 			id: 'geothermal_gain_shield',
-			phase: 'side_effect',
+			phase: 'sideEffect',
 			trigger: 'entity.hasStatus.burn',
 			handler: (ctx) => {
 				ctx.sideEffects.push(

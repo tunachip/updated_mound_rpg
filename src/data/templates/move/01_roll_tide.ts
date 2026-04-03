@@ -3,6 +3,7 @@
 import {
 	applyAttunement,
 	attack,
+	loop,
 	operation,
 	selfTargets,
 } from '../../../combat/operations';
@@ -28,7 +29,6 @@ export const RollTide: MoveTemplate = {
 		}),
 		operation(loop, {
 			ctx: { element: 'water' },
-			targets: selfTargets(),
 		}),
 	],
 	loopOperations: [

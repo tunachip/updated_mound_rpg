@@ -3,6 +3,7 @@
 import type { DamageElement, EntityType, Status, ListenerType } from '../../shared';
 import type { CombatBlessing, CombatEntity, CombatMove } from '../models';
 import type { CombatState } from '../types.ts';
+import type { EntityTemplate } from '../../data/templates';
 import type { StateChange, StateChangeSignal } from './diff.ts';
 
 export interface TargetMatrix {
@@ -12,6 +13,7 @@ export interface TargetMatrix {
 }
 
 export interface OperationContext {
+	combat: CombatState;
 	caster: CombatEntity;
 	move: CombatMove | null;
 	blessing?: CombatBlessing | null;
@@ -22,6 +24,12 @@ export interface OperationContext {
 	status?: Status;
 	amount?: number;
 	operations?: Array<Operation>;
+	elseOperations?: Array<Operation>;
+	listeners?: Array<Listener>;
+	signal?: string;
+	changes?: Array<StateChange>;
+	template?: EntityTemplate;
+	entityTeam?: 'encounters' | 'party';
 }
 
 export type OperationHandler = (ctx: OperationContext) => Array<StateChange>;
@@ -38,7 +46,7 @@ export interface Operation {
 export interface ListenerContext {
 	combat: CombatState;
 	owner: CombatEntity;
-	blessing: CombatBlessing;
+	blessing: CombatBlessing | null;
 	change: StateChange;
 	move: CombatMove | null;
 	cancel: boolean;
@@ -59,7 +67,8 @@ export interface Listener {
 
 export interface RegisteredRuntimeListener {
 	owner: CombatEntity;
-	blessing: CombatBlessing;
+	move: CombatMove | null;
+	blessing: CombatBlessing | null;
 	listener: Listener;
 }
 

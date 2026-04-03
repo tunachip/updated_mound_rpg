@@ -51,6 +51,7 @@ export interface CombatMove {
 	baseDamage: number;
 	baseIterations: number;
 	cooldownTurns: number;
+	currentCooldownTurns: number;
 	isBound: boolean;
 	ignoresStatuses: Array<Status>;
 	operations: Array<Operation>;
@@ -64,6 +65,7 @@ export interface CombatBlessing {
 	element: DamageElement;
 	owner: CombatEntity;
 	cooldownTurns: number;
+	currentCooldownTurns: number;
 	isExhausted: boolean;
 	isBound: boolean;
 	listeners: Array<Listener>;

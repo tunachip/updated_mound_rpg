@@ -3,24 +3,18 @@
 import type { CombatBlessing, CombatEntity, CombatMove } from '../models';
 import type { CombatState } from '../types.ts';
 import {
-	applyStateChange,
-	applyStateChanges,
-	getStateChangeSignal,
-	isNoopStateChange,
-	mergeStateChanges,
-	type StateChange,
+	applyStateChange, applyStateChanges,
+	getStateChangeSignal, isNoopStateChange,
+	mergeStateChanges, type StateChange
 } from './diff.ts';
 import { emptyTargets } from './helpers.ts';
 import type {
-	Listener,
-	ListenerContext,
-	Operation,
-	OperationContext,
-	OperationResult,
-	PreviewSequence,
-	RegisteredRuntimeListener,
-	ResolutionResult,
+	Listener, ListenerContext,
+	Operation, OperationContext,
+	OperationResult, PreviewSequence,
+	RegisteredRuntimeListener, ResolutionResult
 } from './types.ts';
+
 
 function resolveOperationContext(
 	operation: Operation,
@@ -40,7 +34,7 @@ function resolveOperationContext(
 function createListenerContext(
 	combat: CombatState,
 	owner: CombatEntity,
-	blessing: CombatBlessing,
+	blessing: CombatBlessing | null,
 	change: StateChange,
 	move: CombatMove | null,
 ): ListenerContext {
@@ -60,23 +54,23 @@ function matchingListeners(
 	combat: CombatState,
 	phase: Listener['phase'],
 	change: StateChange,
+	move: CombatMove | null,
 ): Array<RegisteredRuntimeListener> {
 	const trigger = getStateChangeSignal(change);
-	return combat.listeners.filter(
-		(registered) =>
-			registered.listener.phase === phase &&
-			registered.listener.trigger === trigger &&
-			registered.listener.conditions.every((condition) =>
-				condition(
-					createListenerContext(
-						combat,
-						registered.owner,
-						registered.blessing,
-						change,
-						null,
-					),
+	return combat.listeners.filter((registered) =>
+		registered.listener.phase === phase &&
+		registered.listener.trigger === trigger &&
+		registered.listener.conditions.every((condition) =>
+			condition(
+				createListenerContext(
+					combat,
+					registered.owner,
+					registered.blessing,
+					change,
+					move,
 				),
 			),
+		),
 	);
 }
 
@@ -96,13 +90,16 @@ function resolveListenerType(
 		field: [...change.field],
 		before: change.before,
 		after: change.after,
+		signal: change.signal,
+		apply: change.apply,
+		registeredListener: change.registeredListener,
 	};
 
 	const sideEffects: Array<StateChange> = [];
 	let cancelled = false;
 	let breaks = false;
 
-	for (const registered of matchingListeners(combat, phase, pendingChange)) {
+	for (const registered of matchingListeners(combat, phase, pendingChange, move)) {
 		const ctx = createListenerContext(
 			combat,
 			registered.owner,
@@ -143,13 +140,20 @@ export function previewOperations(
 	operations: Array<Operation>,
 	baseCtx: OperationContext,
 ): PreviewSequence {
+	const inheritedChanges = baseCtx.changes ?? [];
 	const changes: Array<StateChange> = [];
 	const sequence: PreviewSequence = [];
 	const appliedForPreview: Array<StateChange> = [];
 
 	try {
 		for (const operation of operations) {
-			const result = executeOperation(operation, baseCtx);
+			const result = executeOperation(operation, {
+				...baseCtx,
+				changes: mergeStateChanges([
+					...inheritedChanges,
+					...changes,
+				]),
+			});
 			changes.push(...result.changes);
 			appliedForPreview.push(...applyStateChanges(result.changes));
 			sequence.push(mergeStateChanges(changes));
@@ -174,7 +178,7 @@ export function previewOperations(
 export function hydrateRuntimeListeners(
 	combat: CombatState
 ): Array<RegisteredRuntimeListener> {
-	const listeners: Array<RegisteredRuntimeListener> = [];
+	const staticListeners: Array<RegisteredRuntimeListener> = [];
 
 	for (const entity of [
 		...combat.entities.party,
@@ -185,8 +189,9 @@ export function hydrateRuntimeListeners(
 				continue;
 			}
 			for (const listener of blessing.listeners) {
-				listeners.push({
+				staticListeners.push({
 					owner: entity,
+					move: null,
 					blessing,
 					listener,
 				});
@@ -194,8 +199,12 @@ export function hydrateRuntimeListeners(
 		}
 	}
 
-	combat.listeners = listeners;
-	return listeners;
+	const dynamicListeners = combat.listeners.filter(
+		(registered) => registered.move !== null || registered.blessing === null,
+	);
+
+	combat.listeners = [...staticListeners, ...dynamicListeners];
+	return combat.listeners;
 }
 
 export function resolveStateChange(
@@ -220,6 +229,9 @@ export function resolveStateChange(
 	}
 
 	applyStateChange(interruptResult.updatedChange);
+	if (interruptResult.updatedChange.registeredListener) {
+		combat.listeners.push(interruptResult.updatedChange.registeredListener);
+	}
 	resolvedChanges.applied.push(interruptResult.updatedChange);
 	combat.eventLog.push(getStateChangeSignal(interruptResult.updatedChange));
 
@@ -267,9 +279,39 @@ export function resolveOperations(
 	operations: Array<Operation>,
 	baseCtx: OperationContext,
 ): ResolutionResult {
-	const previewSequence = previewOperations(operations, baseCtx);
-	const finalChanges = previewSequence[previewSequence.length - 1] ?? [];
-	return resolveStateChanges(combat, finalChanges, baseCtx.move);
+	const inheritedChanges = baseCtx.changes ?? [];
+	const emittedChanges: Array<StateChange> = [];
+	const resolved: ResolutionResult = {
+		applied: [],
+		cancelled: [],
+		breaks: false,
+	};
+
+	for (const operation of operations) {
+		const result = executeOperation(operation, {
+			...baseCtx,
+			changes: mergeStateChanges([
+				...inheritedChanges,
+				...emittedChanges,
+			]),
+		});
+
+		const resolution = resolveStateChanges(combat, result.changes, baseCtx.move);
+		emittedChanges.push(
+			...result.changes,
+			...resolution.applied,
+			...resolution.cancelled,
+		);
+		resolved.applied.push(...resolution.applied);
+		resolved.cancelled.push(...resolution.cancelled);
+		resolved.breaks = resolved.breaks || resolution.breaks || result.breaks;
+
+		if (resolved.breaks) {
+			break;
+		}
+	}
+
+	return resolved;
 }
 
 export function baseOperationContext(
