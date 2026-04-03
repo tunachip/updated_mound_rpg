@@ -102,7 +102,10 @@ function makeMove(
 }
 
 function pathLabel(change: StateChange): string {
-	return `${change.host.name}.${change.field.join('.')}`;
+	if ('name' in change.host) {
+		return `${change.host.name}.${change.field.join('.')}`;
+	}
+	return `combat.${change.field.join('.')}`;
 }
 
 function formatValue(value: unknown): string {
@@ -120,7 +123,9 @@ function formatChange(change: StateChange): string {
 }
 
 function summarizeEntity(entity: CombatEntity, changes: Array<StateChange>): string[] {
-	const relevant = changes.filter((change) => change.host.id === entity.id);
+	const relevant = changes.filter(
+		(change) => 'id' in change.host && change.host.id === entity.id,
+	);
 	const current = new Map<string, StateChange>();
 	for (const change of relevant) {
 		current.set(change.field.join('.'), change);
@@ -157,6 +162,7 @@ function renderScreen(
 ): string {
 	const selectedMove = moves[selectedIndex];
 	const previewSequence = previewOperations(selectedMove.operations, {
+		combat: _combat,
 		caster,
 		move: selectedMove,
 		targets: {

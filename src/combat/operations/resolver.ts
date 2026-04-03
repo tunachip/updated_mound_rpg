@@ -179,6 +179,9 @@ export function hydrateRuntimeListeners(
 	combat: CombatState
 ): Array<RegisteredRuntimeListener> {
 	const staticListeners: Array<RegisteredRuntimeListener> = [];
+	const activeOwnerIds = new Set(
+		[...combat.entities.party, ...combat.entities.encounters].map((entity) => entity.id),
+	);
 
 	for (const entity of [
 		...combat.entities.party,
@@ -200,7 +203,9 @@ export function hydrateRuntimeListeners(
 	}
 
 	const dynamicListeners = combat.listeners.filter(
-		(registered) => registered.move !== null || registered.blessing === null,
+		(registered) =>
+			activeOwnerIds.has(registered.owner.id) &&
+			(registered.move !== null || registered.blessing === null),
 	);
 
 	combat.listeners = [...staticListeners, ...dynamicListeners];
@@ -229,6 +234,12 @@ export function resolveStateChange(
 	}
 
 	applyStateChange(interruptResult.updatedChange);
+	if (
+		interruptResult.updatedChange.host === combat &&
+		interruptResult.updatedChange.field[0] === 'entities'
+	) {
+		hydrateRuntimeListeners(combat);
+	}
 	if (interruptResult.updatedChange.registeredListener) {
 		combat.listeners.push(interruptResult.updatedChange.registeredListener);
 	}
@@ -315,11 +326,13 @@ export function resolveOperations(
 }
 
 export function baseOperationContext(
+	combat: CombatState,
 	caster: CombatEntity,
 	move: CombatMove | null,
 	targets = emptyTargets(),
 ): OperationContext {
 	return {
+		combat,
 		caster,
 		move,
 		targets,

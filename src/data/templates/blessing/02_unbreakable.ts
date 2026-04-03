@@ -30,6 +30,7 @@ export const Unbreakable: BlessingTemplate = {
 				ctx.change.after = 1;
 				ctx.sideEffects.push(
 					...exhaustBlessings({
+						combat: ctx.combat,
 						caster: ctx.owner,
 						move: ctx.move,
 						blessing: ctx.blessing,

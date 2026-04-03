@@ -22,6 +22,7 @@ export const Geothermal: BlessingTemplate = {
 			handler: (ctx) => {
 				ctx.sideEffects.push(
 					...applyShields({
+						combat: ctx.combat,
 						caster: ctx.owner,
 						move: ctx.move,
 						blessing: ctx.blessing,

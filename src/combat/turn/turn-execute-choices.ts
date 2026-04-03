@@ -18,7 +18,7 @@ function executeTurnChoice(
 	turnChoice: TurnChoice,
 ): boolean {
 	const move = turnChoice.move;
-	const baseCtx = baseOperationContext(caster, move, turnChoice.targets);
+	const baseCtx = baseOperationContext(combat, caster, move, turnChoice.targets);
 	const emittedChanges: Array<StateChange> = [];
 
 	for (const operation of move.operations) {

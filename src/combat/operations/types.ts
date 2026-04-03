@@ -12,6 +12,13 @@ export interface TargetMatrix {
 	blessings: Array<CombatBlessing>;
 }
 
+export interface CapturedEntityBoundary {
+	team: 'encounters' | 'party';
+	leftId: string | null;
+	rightId: string | null;
+	originalOrder: Array<string>;
+}
+
 export interface OperationContext {
 	combat: CombatState;
 	caster: CombatEntity;
@@ -30,6 +37,9 @@ export interface OperationContext {
 	changes?: Array<StateChange>;
 	template?: EntityTemplate;
 	entityTeam?: 'encounters' | 'party';
+	entityIndex?: number;
+	relativeEntityIndex?: number;
+	capturedEntityBoundary?: CapturedEntityBoundary;
 }
 
 export type OperationHandler = (ctx: OperationContext) => Array<StateChange>;

@@ -29,10 +29,18 @@ function isCombatMove(
 	return 'moveType' in host;
 }
 
+function isCombatState(
+	host: StateChangeHost
+): host is CombatState {
+	return 'turn' in host && 'entities' in host && 'listeners' in host && 'eventLog' in host;
+}
+
 function hostPrefix(
 	host: StateChangeHost
-): 'entity' | 'move' | 'blessing' {
+): 'combat' | 'entity' | 'move' | 'blessing' {
 	switch (true) {
+		case isCombatState(host):
+			return 'combat';
 		case isCombatEntity(host):
 			return 'entity';
 		case isCombatMove(host):
@@ -54,10 +62,11 @@ export function getStateChangeSignal(
 export function getStateChangeKey(
 	change: StateChange
 ): string {
+	const hostId = isCombatState(change.host) ? 'state' : change.host.id;
 	if (change.signal) {
-		return `${hostPrefix(change.host)}:${change.host.id}:signal:${change.signal}`;
+		return `${hostPrefix(change.host)}:${hostId}:signal:${change.signal}`;
 	}
-	return `${hostPrefix(change.host)}:${change.host.id}:${change.field.join('.')}`;
+	return `${hostPrefix(change.host)}:${hostId}:${change.field.join('.')}`;
 }
 
 export function isNoopStateChange(

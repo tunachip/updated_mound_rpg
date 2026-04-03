@@ -83,6 +83,8 @@ export function hostTargets(
 				return makeTargets({ entities: [change.host] });
 			case 'moveType' in change.host:
 				return makeTargets({ moves: [change.host] });
+			case 'turn' in change.host:
+				return emptyTargets();
 			default:
 				return makeTargets({ blessings: [change.host] });
 		};
@@ -143,7 +145,7 @@ export function listener(options: {
 
 export function changeHostIsOwner(
 ): ListenerCondition {
-	return (ctx) => ctx.change.host.id === ctx.owner.id;
+	return (ctx) => 'id' in ctx.change.host && ctx.change.host.id === ctx.owner.id;
 }
 
 export function changeAfterAtMost(

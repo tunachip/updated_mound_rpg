@@ -14,6 +14,7 @@ export function attemptCurse (
 		const before = target.curseChance;
 		if (before >= randomNumber(1, 10)) {
 			const statusIntents = applyStatusTurns({
+				combat: ctx.combat,
 				caster: ctx.caster,
 				move: ctx.move,
 				blessing: ctx.blessing,
