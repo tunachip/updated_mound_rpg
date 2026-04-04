@@ -1,6 +1,7 @@
 // src/combat/operations/types.ts
 
 import type { DamageElement, EntityType, Status, ListenerType } from '../../shared';
+import type { GoalKind } from '../ai';
 import type { CombatBlessing, CombatEntity, CombatMove } from '../models';
 import type { CombatState } from '../types.ts';
 import type { EntityTemplate } from '../../data/templates';
@@ -42,6 +43,10 @@ export interface OperationContext {
 	elseOperations?: Array<Operation>;
 	listeners?: Array<Listener>;
 	signal?: string;
+	goalId?: string;
+	goalKind?: GoalKind;
+	goalField?: Array<string>;
+	goalValue?: unknown;
 	changes?: Array<StateChange>;
 	template?: EntityTemplate;
 	entityTeam?: 'encounters' | 'party';

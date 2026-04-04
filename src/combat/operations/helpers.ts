@@ -166,3 +166,9 @@ export function changeAfterAtMost(
 ): ListenerCondition {
 	return (ctx) => typeof ctx.change.after === 'number' && ctx.change.after <= threshold;
 }
+
+export function changeAfterIs(
+	value: unknown,
+): ListenerCondition {
+	return (ctx) => Object.is(ctx.change.after, value);
+}

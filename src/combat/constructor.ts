@@ -3,13 +3,14 @@
 import type { CombatState } from '.';
 import type { EntityTemplate } from '../data/templates';
 import { buildCombatEntities } from './models/constructor.ts';
-import { randomNumber } from './operations';
+import { hydrateCombatGoals } from './ai/goals.ts';
+import { randomNumber } from './operations/index.ts';
 
 export function buildCombatState(
 	party: Array<EntityTemplate>,
 	encounters: Array<EntityTemplate>,
 ): CombatState {
-	return {
+	const combat: CombatState = {
 		turn: 0,
 		hasPriority: (['party', 'encounters'] as const)[randomNumber(0, 2)],
 		entities: {
@@ -19,4 +20,6 @@ export function buildCombatState(
 		listeners: [],
 		eventLog: [],
 	};
+	hydrateCombatGoals(combat);
+	return combat;
 }

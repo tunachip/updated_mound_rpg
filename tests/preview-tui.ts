@@ -3,6 +3,7 @@
 import * as readline from 'node:readline';
 import type { Key } from 'node:readline';
 
+import { defaultAiTuning } from '../src/combat/ai/goals.ts';
 import { buildCombatMove } from '../src/combat/models/constructor.ts';
 import { previewOperations, type StateChange } from '../src/combat/operations/index.ts';
 import { BasicAttackMoves } from '../src/data/templates/move/index.ts';
@@ -54,6 +55,7 @@ function makeEntity(
 	return {
 		id,
 		name,
+		level: 1,
 		entityType: 'controlled',
 		hp: 10,
 		maxHp: 20,
@@ -79,6 +81,8 @@ function makeEntity(
 		turnChoices: [],
 		dodges: 0,
 		knowledge: [],
+		aiTuning: defaultAiTuning,
+		goals: [],
 		...overrides,
 	};
 }

@@ -3,14 +3,11 @@
 import type { StateChange } from './diff.ts';
 import type { Operation, OperationContext } from '.';
 import { previewOperations } from './resolver.ts';
-import { requireCtx } from './helpers.ts';
 
 export function loop(
 	ctx: OperationContext
 ): Array<StateChange> {
-	requireCtx('loop', ctx, ['move', 'operations']);
-
-	const operations = ctx.operations;
+	const operations = ctx.operations ?? ctx.move?.loopOperations ?? [];
 	if (operations.length === 0) {
 		return [];
 	}

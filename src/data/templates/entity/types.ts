@@ -2,6 +2,7 @@
 
 import type { EntityType } from '../../../shared';
 import type { MoveTemplate, BlessingTemplate, ItemTemplate, FragmentTemplate} from '..';
+import type { AiTuning } from '../../../combat/ai';
 
 export interface EntityTemplate {
 	id: string;
@@ -14,6 +15,7 @@ export interface EntityTemplate {
 	energy: number;
 	maxEnergy: number;
 	shields: number;
+	aiTuning?: Partial<AiTuning>;
 	moves: Array<[MoveTemplate, Array<FragmentTemplate>]>;
 	blessings: Array<BlessingTemplate>;
 	inventory: Array<ItemTemplate>;

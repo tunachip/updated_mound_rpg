@@ -4,9 +4,12 @@ import type { DamageElement, Status } from '../../shared';
 import type { CombatEntity, CombatMove, TurnChoice } from '../models';
 
 function validChain(
-	moveElement: DamageElement,
+	moveElement: CombatMove['element'],
 	lastChainedMoveElement: DamageElement,
 ): boolean {
+	if (moveElement === 'neutral') {
+		return false;
+	}
 	switch (lastChainedMoveElement) {
 		case 'water':
 			return moveElement == 'thunder'

@@ -2,7 +2,7 @@
 
 import type { DamageElement, EntityType, MoveType, Status, TargetType } from '../../shared';
 import type { Listener, Operation, TargetMatrix } from '../operations';
-import type { GoalHierarchy } from '../ai';
+import type { AiTuning, GoalHierarchy } from '../ai';
 
 export interface CombatTargetingRules {
 	type: TargetType;
@@ -44,6 +44,7 @@ export interface CombatEntity {
 	turnChoices: Array<TurnChoice>;
 	dodges: number;
 	knowledge: Array<any>;
+	aiTuning: AiTuning;
 	goals: GoalHierarchy;
 }
 

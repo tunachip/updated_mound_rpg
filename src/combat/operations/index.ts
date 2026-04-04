@@ -13,6 +13,7 @@ export * from './damage.ts';
 export * from './energy.ts';
 export * from './emit-signal.ts';
 export * from './entity-type.ts';
+export * from './goal.ts';
 export * from './if-then-else.ts';
 export * from './iteration.ts';
 export * from './max-energy.ts';

@@ -1,28 +1,141 @@
 // src/combat/ai/turnChoice.ts
 
-import { applyEnergy, entityTargets, operation, selfTargets, ifThenElse, } from '..';
-import type { CombatEntity, CombatMove, CombatState, TurnChoice } from "..";
-import { moveEntity } from '../operations/move-entity';
-import { turnChoiceDisqualified } from '../turn/turn-disqualifiers';
+import type { Goal } from './types.ts';
+import type { CombatEntity, CombatMove, TurnChoice } from '../models';
+import type { CombatState } from '../types.ts';
+import {
+	applyEnergy,
+	baseOperationContext,
+	entityTargets,
+	emptyTargets,
+	makeTargets,
+	mergeStateChanges,
+	operation,
+	previewOperations,
+	selfTargets,
+	type StateChange,
+	type TargetMatrix,
+} from '../operations/index.ts';
+import { moveEntity } from '../operations/move-entity.ts';
+import { turnChoiceDisqualified } from '../turn/turn-disqualifiers.ts';
 
-function focus(
+interface ScoredChoice {
+	choice: TurnChoice;
+	score: number;
+}
+
+function sameField(
+	left: Array<string>,
+	right: Array<string>,
+): boolean {
+	return left.length === right.length &&
+		left.every((segment, index) => segment === right[index]);
+}
+
+function readPath(
+	host: unknown,
+	field: Array<string>,
+): unknown {
+	let current: unknown = host;
+	for (const segment of field) {
+		current = (current as Record<string, unknown>)[segment];
+	}
+	return current;
+}
+
+function projectedValue(
+	goal: Goal,
+	changes: Array<StateChange>,
+): unknown {
+	for (let i = changes.length - 1; i >= 0; i -= 1) {
+		const change = changes[i];
+		if (change.host !== goal.host) {
+			continue;
+		}
+		if (sameField(change.field, goal.field)) {
+			return change.after;
+		}
+	}
+	return readPath(goal.host, goal.field);
+}
+
+function valueDistance(
+	value: unknown,
+	target: unknown,
+): number {
+	if (typeof value === 'number' && typeof target === 'number') {
+		return Math.abs(value - target);
+	}
+	if (typeof value === 'boolean' && typeof target === 'boolean') {
+		return value === target ? 0 : 1;
+	}
+	return Object.is(value, target) ? 0 : 1;
+}
+
+function scoreGoal(
+	goal: Goal,
+	changes: Array<StateChange>,
+): number {
+	const before = readPath(goal.host, goal.field);
+	const after = projectedValue(goal, changes);
+	const beforeDistance = valueDistance(before, goal.value);
+	const afterDistance = valueDistance(after, goal.value);
+
+	switch (goal.kind) {
+		case 'approach':
+		case 'maintain':
+			return (beforeDistance - afterDistance) * goal.weight;
+		case 'prevent':
+			return (afterDistance - beforeDistance) * goal.weight;
+	}
+}
+
+function teamOfEntity(
+	combat: CombatState,
+	entity: CombatEntity,
+): 'party' | 'encounters' | null {
+	if (combat.entities.party.some((member) => member.id === entity.id)) {
+		return 'party';
+	}
+	if (combat.entities.encounters.some((member) => member.id === entity.id)) {
+		return 'encounters';
+	}
+	return null;
+}
+
+function alliesOf(
+	combat: CombatState,
+	entity: CombatEntity,
+): Array<CombatEntity> {
+	const team = teamOfEntity(combat, entity);
+	if (!team) {
+		return [];
+	}
+	return combat.entities[team].filter((candidate) => !candidate.isDead);
+}
+
+function enemiesOf(
+	combat: CombatState,
+	entity: CombatEntity,
+): Array<CombatEntity> {
+	const team = teamOfEntity(combat, entity);
+	if (!team) {
+		return [];
+	}
+	const enemyTeam = team === 'party'
+		? 'encounters'
+		: 'party';
+	return combat.entities[enemyTeam].filter((candidate) => !candidate.isDead);
+}
+
+function focusChoice(
 	entity: CombatEntity,
 ): TurnChoice {
-	const ignoresStatuses = Object.assign([
-		'sleep', 'anger', 'stun'
-	] as CombatMove['ignoresStatuses'],
-		{
-			sleep: true,
-			anger: true,
-			stun: true,
-		},
-	);
-
 	return {
 		move: {
-			id: 'focus',
+			id: `focus:${entity.id}`,
 			name: 'Focus',
-			description: 'Skips Turn to Regain 1 Energy. Ignores Sleep, Stun, and Anger.',
+			description: 'Skip turn and gain 1 energy.',
 			element: 'neutral',
 			moveType: 'focus',
 			owner: entity,
@@ -34,7 +147,8 @@ function focus(
 			baseIterations: 1,
 			cooldownTurns: 0,
 			isBound: false,
-			ignoresStatuses,
+			canBeChainedInto: false,
+			ignoresStatuses: ['sleep', 'anger', 'stun'],
 			operations: [
 				operation(applyEnergy, {
 					ctx: { amount: 1 },
@@ -48,153 +162,216 @@ function focus(
 	};
 }
 
-function move(
-	entity: CombatEntity
-): TurnChoice {
-	// TODO: Create Index Choice Logic
-	const newEntityIndex = 0;
-
-	return {
-		move: {
-			id: 'focus',
-			name: 'Focus',
-			description: 'Skips Turn to Change Entity Position. Fails on Stun.',
-			element: 'neutral',
-			moveType: 'focus',
-			owner: entity,
-			targetType: {
-				type: 'self',
-				range: [0, 0],
-			},
-			baseDamage: 0,
-			baseIterations: 1,
-			cooldownTurns: 0,
-			isBound: false,
-			ignoresStatuses: [],
-			operations: [
-				// fails on entity.hasStatus.stun === true
-				operation(ifThenElse, {
-					ctx: {}
-				}),
-				operation(moveEntity, {
-					ctx: { entityIndex: newEntityIndex },
-					targets: selfTargets(),
-				}),
-			],
-			loopOperations: [],
-		},
-		targets: entityTargets(entity),
+function movementChoices(
+	combat: CombatState,
+	entity: CombatEntity,
+): Array<TurnChoice> {
+	const team = teamOfEntity(combat, entity);
+	if (!team) {
+		return [];
 	}
+
+	const teamEntities = combat.entities[team];
+	const currentIndex = teamEntities.findIndex((member) => member.id === entity.id);
+	if (currentIndex < 0) {
+		return [];
+	}
+
+	const choices: Array<TurnChoice> = [];
+	for (let index = 0; index < teamEntities.length; index += 1) {
+		if (index === currentIndex) {
+			continue;
+		}
+		choices.push({
+			move: {
+				id: `move:${entity.id}:${index}`,
+				name: 'Reposition',
+				description: 'Move to a new position in the team order.',
+				element: 'neutral',
+				moveType: 'focus',
+				owner: entity,
+				targetType: {
+					type: 'self',
+					range: [0, 0],
+				},
+				baseDamage: 0,
+				baseIterations: 1,
+				cooldownTurns: 0,
+				isBound: false,
+				canBeChainedInto: false,
+				ignoresStatuses: [],
+				operations: [
+					operation(moveEntity, {
+						ctx: { entityIndex: index },
+						targets: selfTargets(),
+					}),
+				],
+				loopOperations: [],
+			},
+			targets: entityTargets(entity),
+		});
+	}
+	return choices;
+}
+
+function combinations<T>(
+	items: Array<T>,
+	size: number,
+): Array<Array<T>> {
+	if (size === 0) {
+		return [[]];
+	}
+	if (size > items.length) {
+		return [];
+	}
+	if (size === 1) {
+		return items.map((item) => [item]);
+	}
+
+	const result: Array<Array<T>> = [];
+	for (let index = 0; index <= items.length - size; index += 1) {
+		const head = items[index];
+		for (const tail of combinations(items.slice(index + 1), size - 1)) {
+			result.push([head, ...tail]);
+		}
+	}
+	return result;
+}
+
+function targetMatricesForMove(
+	combat: CombatState,
+	caster: CombatEntity,
+	move: CombatMove,
+): Array<TargetMatrix> {
+	const [minTargets, maxTargets] = move.targetType.range;
+	const maxCount = Math.max(minTargets, maxTargets);
+
+	switch (move.targetType.type) {
+		case 'self':
+			return [entityTargets(caster)];
+		case 'ally': {
+			const allies = alliesOf(combat, caster).filter((ally) => ally.id !== caster.id);
+			const matrices: Array<TargetMatrix> = [];
+			for (let count = minTargets; count <= Math.min(maxCount, allies.length); count += 1) {
+				for (const combo of combinations(allies, count)) {
+					matrices.push(makeTargets({ entities: combo }));
+				}
+			}
+			return matrices;
+		}
+		case 'enemy': {
+			const enemies = enemiesOf(combat, caster);
+			const matrices: Array<TargetMatrix> = [];
+			for (let count = minTargets; count <= Math.min(maxCount, enemies.length); count += 1) {
+				for (const combo of combinations(enemies, count)) {
+					matrices.push(makeTargets({ entities: combo }));
+				}
+			}
+			return matrices;
+		}
+		case 'entity': {
+			const allEntities = [...alliesOf(combat, caster), ...enemiesOf(combat, caster)];
+			const unique = allEntities.filter(
+				(entity, index, array) =>
+					array.findIndex((candidate) => candidate.id === entity.id) === index,
+			);
+			const matrices: Array<TargetMatrix> = [];
+			for (let count = minTargets; count <= Math.min(maxCount, unique.length); count += 1) {
+				for (const combo of combinations(unique, count)) {
+					matrices.push(makeTargets({ entities: combo }));
+				}
+			}
+			return matrices;
+		}
+		case 'move':
+		case 'blessing':
+			if (minTargets === 0) {
+				return [emptyTargets()];
+			}
+			return [];
+	}
+}
+
+function previewChoiceChanges(
+	combat: CombatState,
+	entity: CombatEntity,
+	choice: TurnChoice,
+): Array<StateChange> {
+	const previewSequence = previewOperations(
+		choice.move.operations,
+		baseOperationContext(
+			combat,
+			entity,
+			choice.move,
+			choice.targets,
+		),
+	);
+	return mergeStateChanges(
+		previewSequence[previewSequence.length - 1] ?? [],
+	);
+}
+
+function scoreChoice(
+	combat: CombatState,
+	entity: CombatEntity,
+	choice: TurnChoice,
+): number {
+	const projectedChanges = previewChoiceChanges(combat, entity, choice);
+	let score = entity.goals.reduce(
+		(total, goal) => total + scoreGoal(goal, projectedChanges),
+		0,
+	);
+
+	if (choice.isFocus) {
+		score -= 0.05;
+	}
+
+	if (choice.move.id.startsWith('move:')) {
+		score -= entity.aiTuning.positioning;
+	}
+
+	return score;
+}
+
+function moveChoices(
+	combat: CombatState,
+	entity: CombatEntity,
+): Array<TurnChoice> {
+	const choices: Array<TurnChoice> = [];
+
+	for (const move of entity.moves) {
+		if (move.cooldownTurns > 0) {
+			continue;
+		}
+
+		const targetOptions = targetMatricesForMove(combat, entity, move);
+		for (const targets of targetOptions) {
+			const choice: TurnChoice = { move, targets };
+			if (turnChoiceDisqualified(entity, choice)) {
+				continue;
+			}
+			choices.push(choice);
+		}
+	}
+
+	return choices;
 }
 
 export function calculateTurnChoices(
 	combat: CombatState,
 	entity: CombatEntity,
-): Array<Array<TurnChoice>> {
-	if (entity.entityType === 'controlled') {
-		throw new Error('Controlled Entities should have TurnChoices decided by the Player');
-	}
+): Array<TurnChoice> {
+	const choices = [
+		...moveChoices(combat, entity),
+		...movementChoices(combat, entity),
+		focusChoice(entity),
+	].filter((choice) => !turnChoiceDisqualified(entity, choice));
 
-	// Uses Diff, Level(AI IQ), & AI Goals Hierarchy
-	// Composes an ordered list of turnChoices
-	// From this, the first legal choice is taken
+	const ranked: Array<ScoredChoice> = choices.map((choice) => ({
+		choice,
+		score: scoreChoice(combat, entity, choice),
+	}));
 
-	// Always available:
-	//	1. 'Cast':	choose active CombatMove to cast
-	//	2. 'Chain': choose a chain of active CombatMoves to cast.
-	//							chained moves require a chain tax
-	//							chain tax is 1 more than the last paid (starting at 1)
-	//							chain tax is checked before cast, but is paid at runtime
-	//							accordingly, chains of costless moves will look like this:
-	//								move_1 --(pay 1)-->
-	//								move_2 --(pay 2)-->
-	//								move_3 --(pay 3)-->
-	//								move_4 --(pay 4)-->
-	//								...
-	//	3. 'Focus': skip turn, gain 1 energy
-	//	4. 'Move':	move this entity to another spot in the team array
-	const orderedTurnChoiceOptions: Array<Array<TurnChoice>> = [];
-
-	// basic turn choice options
-	const turnChoiceOptions: Array<Array<TurnChoice>> = [
-		[focus(entity)],
-		[move(entity)],
-	];
-	const targets = {
-		entities: [
-			...combat.entities.encounters,
-			...combat.entities.party,
-		],
-		moves: [],
-		blessings: [],
-	};
-
-	// move-based turn choice options
-	while (true) {
-		const moves = entity.moves;
-		if (moves.length < 1) {
-			return turnChoiceOptions;
-		}
-
-		// TODO: This is too limiting for late game
-		// we should be doing this with a function that can handle
-		// higher values than this 
-		// as maxEnergy can increase / can happen with special ability
-		let maxChainLength = 0
-		switch (entity.energy) {
-			case 0:
-				break;
-			case 1:
-			case 2:
-				maxChainLength += 1;
-			case 3:
-			case 4:
-			case 5:
-				maxChainLength += 1;
-			case 6:
-				maxChainLength += 1;
-				break;
-		}
-
-		// chain segments
-		//
-		// I've not done a great job here, but basically
-		// we are finding all legal chains of all legal lengths
-		// and then evaluating if they are legal choices
-		// and if so, we are putting them into the array
-		for (let i = 0; i > maxChainLength; i += 1) {
-			const moveChain: Array<TurnChoice> = [];
-			for (const move of moves) {
-				const moveChoices: Array<TurnChoice> = [];
-				// TODO: Update this funciton in general to handle the targetType correctly
-				// ideally this will be very efficient by not wasting time checking invalid typed options
-				for (const entity of targets.entities) {
-					const moveChoice = {
-						move: move,
-						targets: {
-							entities: [entity],
-							moves: [],
-							blessings: []
-						}
-					};
-					if (turnChoiceDisqualified(entity, moveChoice)) {
-						continue;
-					}
-					moveChoices.push(moveChoice);
-				}
-			}
-		}
-
-		// after this, we then take what we know about other entity movepools via entity.knowledge
-		// from this, we then do 'future turn calculation'
-		// this is essentially chess ai -- we are thinking X turns ahead, checking all options
-		// using the diff from each step to evaluate all the board states
-		// we then compare that against our goal hierarchy and order the movechoices according to this
-		// level is the number of turns we predict forward
-		for (let i=0; i>entity.level; i+= 1) {
-
-		}
-
-		return orderedTurnChoiceOptions;
-	}
+	ranked.sort((left, right) => right.score - left.score);
+	return ranked.map(({ choice }) => choice);
 }

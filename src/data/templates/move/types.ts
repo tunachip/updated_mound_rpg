@@ -13,6 +13,7 @@ export interface MoveTemplate {
 	element: DamageElement;
 	baseDamage: number;
 	baseIterations: number;
+	canBeChainedInto?: boolean;
 	ignoresStatuses: Array<Status>;
 	operations: Array<Operation>;
 	loopOperations: Array<Operation>;

@@ -1,6 +1,7 @@
 // src/combat/combat-loop.ts
 
 import type { CombatEntity, CombatState, TurnChoice } from '.';
+import { hydrateCombatGoals } from './ai/goals.ts';
 import {
 	audit,
 	cleanupEntity,
@@ -10,7 +11,7 @@ import {
 	tickCooldowns,
 	tickIgnoresStatuses,
 	tickStatuses,
-} from './turn';
+} from './turn/index.ts';
 
 type EntityGroup = 'party' | 'encounters';
 type KnownTurnChoice = [TurnChoice, boolean];
@@ -32,13 +33,15 @@ function setTurnChoices(
 function refreshTurnChoices(
 	combat: CombatState,
 ): void {
+	hydrateCombatGoals(combat);
+
 	const entities = [...combat.entities.encounters, ...combat.entities.party];
 	const premoved = entities.filter((entity) => entity.entityType !== 'controlled');
 	const controlled = entities.filter((entity) => entity.entityType === 'controlled');
 
 	for (const group of [premoved, controlled] as const) {
 		for (const entity of group) {
-			setTurnChoices(combat, entity, makeTurnChoices(entity));
+			setTurnChoices(combat, entity, makeTurnChoices(combat, entity));
 		}
 	}
 }

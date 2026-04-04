@@ -5,6 +5,7 @@ import type { Status, ModifierExpression } from '../../shared';
 import type { CombatEntity, CombatMove, CombatBlessing } from '../';
 import type { FragmentTemplate, EntityTemplate, MoveTemplate, BlessingTemplate } from '../../data/templates';
 import type { Operation } from '../operations';
+import { defaultAiTuning } from '../ai/goals.ts';
 
 function resolveNumberModifier(
 	base: number,
@@ -145,12 +146,13 @@ export function buildCombatEntity(
 	return {
 		id: entity.id,
 		name: entity.name,
+		level: entity.level,
 		entityType: entity.entityType,
 		hp: entity.hp,
 		maxHp: entity.maxHp,
 		energy: entity.energy,
 		maxEnergy: entity.maxEnergy,
-		shields: 0,
+		shields: entity.shields,
 		extraIterations: 0,
 		isDead: false,
 		shieldsBroken: false,
@@ -170,6 +172,11 @@ export function buildCombatEntity(
 		turnChoices: [],
 		dodges: 0,
 		knowledge: [],
+		aiTuning: {
+			...defaultAiTuning,
+			...(entity.aiTuning ?? {}),
+		},
+		goals: [],
 	};
 }
 
@@ -189,6 +196,7 @@ export function buildCombatMove(
 		baseDamage: moveTemplate.baseDamage,
 		cooldownTurns: 0,
 		isBound: false,
+		canBeChainedInto: moveTemplate.canBeChainedInto ?? false,
 		baseIterations: moveTemplate.baseIterations,
 		ignoresStatuses: moveTemplate.ignoresStatuses,
 		operations: moveTemplate.operations,
