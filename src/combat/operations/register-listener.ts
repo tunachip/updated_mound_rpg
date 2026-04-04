@@ -11,7 +11,7 @@ export function registerListener(
 
 	const host = ctx.move ?? ctx.blessing ?? ctx.caster;
 	return ctx.listeners.map((listener) => ({
-		host,
+		host: host,
 		field: ['listeners', listener.id],
 		before: false,
 		after: true,
@@ -21,7 +21,7 @@ export function registerListener(
 			owner: ctx.caster,
 			move: ctx.move ?? null,
 			blessing: ctx.blessing ?? null,
-			listener,
+			listener: listener,
 		},
 	}));
 }

@@ -6,6 +6,7 @@ import type { CombatEntity } from '../models';
 import type { DamageElement } from '../../shared';
 import { DamageElements, ElementRelationships } from '../../shared/index.ts';
 import { requireCtx } from './helpers.ts';
+import { openWounds } from './open-wounds.ts';
 
 interface CalculatedDamage {
 	damage: number;
@@ -57,41 +58,103 @@ function getStatusDamageElement(
 	}
 }
 
-function createHpChange(
+function createHpChanges(
 	target: CombatEntity,
 	calculated: CalculatedDamage
-): StateChange | null {
+): Array<StateChange> {
+	const intents: Array<StateChange> = [];
+
 	if (calculated.healed > 0) {
 		const before = target.hp;
 		const after = Math.min(target.maxHp, before + calculated.healed);
 		if (after > before) {
-			return {
+			intents.push({
 				host: target,
 				field: ['hp'],
 				before: before,
 				after: after,
-			};
+			});
 		}
-		else {
-			return null;
-		}
+		return intents;
 	}
 	if (calculated.blocked) {
-		return null;
+		return intents;
 	}
+
 	const before = target.hp;
 	const after = Math.max(0, before - calculated.damage);
-	if (after < before) {
-		return {
+	const damageTaken = before - after;
+	if (damageTaken <= 0) {
+		return intents;
+	}
+
+	intents.push({
+		host: target,
+		field: ['hp'],
+		before: before,
+		after: after,
+	});
+	intents.push({
+		host: target,
+		field: ['lastDamageTaken'],
+		before: target.lastDamageTaken,
+		after: damageTaken,
+	});
+	intents.push({
+		host: target,
+		field: ['totalDamageTaken'],
+		before: target.totalDamageTaken,
+		after: target.totalDamageTaken + damageTaken,
+	});
+	if (damageTaken > target.maxDamageTaken) {
+		intents.push({
 			host: target,
-			field: ['hp'],
-			before: before,
-			after: after,
-		};
+			field: ['maxDamageTaken'],
+			before: target.maxDamageTaken,
+			after: damageTaken,
+		});
 	}
-	else {
-		return null;
+	if (!target.isBloody && after <= Math.floor(target.maxHp / 2)) {
+		intents.push({
+			host: target,
+			field: ['isBloody'],
+			before: false,
+			after: true,
+		});
 	}
+	if (!target.isDead && after === 0) {
+		intents.push({
+			host: target,
+			field: ['isDead'],
+			before: false,
+			after: true,
+		});
+	}
+
+	return intents;
+}
+
+function appendOpenWounds(
+	intents: Array<StateChange>,
+	ctx: OperationContext,
+	target: CombatEntity,
+): void {
+	if (target.isBloody || target.statusTurns.wound <= 0) {
+		return;
+	}
+
+	intents.push(...openWounds({
+		...ctx,
+		targets: {
+			entities: [target],
+			moves: [],
+			blessings: [],
+		},
+		changes: [
+			...(ctx.changes ?? []),
+			...intents,
+		],
+	}));
 }
 
 export function attack(
@@ -103,8 +166,8 @@ export function attack(
 
 	for (const target of ctx.targets.entities) {
 		const calculated = calculateDamage(amount, element, target);
-		const intent = createHpChange(target, calculated);
-		if (intent) intents.push(intent);
+		intents.push(...createHpChanges(target, calculated));
+		appendOpenWounds(intents, ctx, target);
 	}
 	return intents;
 }
@@ -121,8 +184,8 @@ export function applyDamageFromStatus(
 
 	for (const target of ctx.targets.entities) {
 		const calculated = calculateDamage(amount, element, target);
-		const intent = createHpChange(target, calculated);
-		if (intent) intents.push(intent);
+		intents.push(...createHpChanges(target, calculated));
+		appendOpenWounds(intents, ctx, target);
 	}
 	return intents;
 }

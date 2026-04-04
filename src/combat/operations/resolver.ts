@@ -97,8 +97,9 @@ function executeListenerOperations(
 		targets: emptyTargets(),
 	});
 
+	const lastEntry = previewSequence[previewSequence.length - 1];
 	return {
-		sideEffects: previewSequence[previewSequence.length - 1] ?? [],
+		sideEffects: lastEntry ?? [],
 	};
 }
 
@@ -151,7 +152,8 @@ function resolveListenerType(
 	let cancelled = false;
 	let breaks = false;
 
-	for (const registered of matchingListeners(combat, phase, pendingChange, move)) {
+	const matching = matchingListeners(combat, phase, pendingChange, move);
+	for (const registered of matching) {
 		const ctx = createListenerContext(
 			combat,
 			registered.owner,
@@ -231,8 +233,8 @@ export function hydrateRuntimeListeners(
 	const staticListeners: Array<RegisteredRuntimeListener> = [];
 	const activeOwnerIds = new Set(
 		[...combat.entities.party,
-		 ...combat.entities.encounters
-	].map((entity) => entity.id));
+		...combat.entities.encounters
+		].map((entity) => entity.id));
 
 	for (const entity of [
 		...combat.entities.party,
@@ -259,7 +261,10 @@ export function hydrateRuntimeListeners(
 			(registered.move !== null || registered.blessing === null),
 	);
 
-	combat.listeners = [...staticListeners, ...dynamicListeners];
+	combat.listeners = [
+		...staticListeners,
+		...dynamicListeners
+	];
 	return combat.listeners;
 }
 
@@ -275,7 +280,9 @@ export function resolveStateChange(
 		breaks: interruptResult.breaks,
 	};
 
-	if (interruptResult.cancelled || isNoopStateChange(interruptResult.updatedChange)) {
+	if (interruptResult.cancelled ||
+			isNoopStateChange(interruptResult.updatedChange)
+	) {
 		resolvedChanges.cancelled.push(interruptResult.updatedChange);
 		const nested = resolveStateChanges(combat, interruptResult.sideEffects, move);
 		resolvedChanges.applied.push(...nested.applied);
@@ -285,9 +292,8 @@ export function resolveStateChange(
 	}
 
 	applyStateChange(interruptResult.updatedChange);
-	if (
-		interruptResult.updatedChange.host === combat &&
-		interruptResult.updatedChange.field[0] === 'entities'
+	if (interruptResult.updatedChange.host === combat &&
+		  interruptResult.updatedChange.field[0] === 'entities'
 	) {
 		hydrateRuntimeListeners(combat);
 	}
@@ -297,7 +303,7 @@ export function resolveStateChange(
 	resolvedChanges.applied.push(interruptResult.updatedChange);
 	combat.eventLog.push(getStateChangeSignal(interruptResult.updatedChange));
 
-	const sideEffectResult = resolveListenerType(combat, 'sideEffect', interruptResult.updatedChange, move,);
+	const sideEffectResult = resolveListenerType(combat, 'sideEffect', interruptResult.updatedChange, move);
 	resolvedChanges.breaks = resolvedChanges.breaks || sideEffectResult.breaks;
 	if (sideEffectResult.cancelled) {
 		resolvedChanges.cancelled.push(sideEffectResult.updatedChange);
@@ -305,7 +311,8 @@ export function resolveStateChange(
 
 	const nested = resolveStateChanges(
 		combat,
-		[...interruptResult.sideEffects, ...sideEffectResult.sideEffects],
+		[...interruptResult.sideEffects,
+		 ...sideEffectResult.sideEffects],
 		move,
 	);
 	resolvedChanges.applied.push(...nested.applied);
@@ -329,9 +336,6 @@ export function resolveStateChanges(
 		parsedChanges.applied.push(...result.applied);
 		parsedChanges.cancelled.push(...result.cancelled);
 		parsedChanges.breaks = parsedChanges.breaks || result.breaks;
-		if (parsedChanges.breaks) {
-			break;
-		}
 	}
 	return parsedChanges;
 }
@@ -358,7 +362,12 @@ export function resolveOperations(
 			]),
 		});
 
-		const resolution = resolveStateChanges(combat, result.changes, baseCtx.move);
+		const resolution = resolveStateChanges(
+			combat,
+			result.changes,
+			baseCtx.move
+		);
+
 		emittedChanges.push(
 			...result.changes,
 			...resolution.applied,
@@ -368,11 +377,8 @@ export function resolveOperations(
 		resolved.cancelled.push(...resolution.cancelled);
 		resolved.breaks = resolved.breaks || resolution.breaks || result.breaks;
 
-		if (resolved.breaks) {
-			break;
-		}
+		if (resolved.breaks) break;
 	}
-
 	return resolved;
 }
 
@@ -382,10 +388,5 @@ export function baseOperationContext(
 	move: CombatMove | null,
 	targets = emptyTargets(),
 ): OperationContext {
-	return {
-		combat,
-		caster,
-		move,
-		targets,
-	};
+	return {combat, caster, move, targets};
 }

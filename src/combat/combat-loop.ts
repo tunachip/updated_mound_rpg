@@ -2,123 +2,132 @@
 
 import type { CombatEntity, CombatState, TurnChoice } from '.';
 import {
-	makeTurnChoices,
 	audit,
-	turnChoiceDisqualified,
-	executeTurnChoice,
-	tickStatuses,
-	tickCooldowns,
-	tickAttunements,
-	tickIgnoresStatuses,
 	cleanupEntity,
+	executeTurnChoice,
+	makeTurnChoices,
+	tickAttunements,
+	tickCooldowns,
+	tickIgnoresStatuses,
+	tickStatuses,
 } from './turn';
 
-type EntityGroup = "party" | "encounters";
+type EntityGroup = 'party' | 'encounters';
+type KnownTurnChoice = [TurnChoice, boolean];
 
 function setTurnChoices(
 	combat: CombatState,
 	entity: CombatEntity,
-	turnChoices: Array<TurnChoice>,
-) {
+	turnChoices: Array<KnownTurnChoice>,
+): void {
 	for (const [turnChoice, isPlayerKnown] of turnChoices) {
 		entity.turnChoices.push(turnChoice);
-		// TODO: This Represents a temporary means of knowing what the player knows
-		// and thus what is made visible in the UI
-		if (isPlayerKnown === true) {
+		if (isPlayerKnown) {
 			const player = combat.entities.party[0];
 			player.knowledge.push(turnChoice);
 		}
 	}
 }
 
+function refreshTurnChoices(
+	combat: CombatState,
+): void {
+	const entities = [...combat.entities.encounters, ...combat.entities.party];
+	const premoved = entities.filter((entity) => entity.entityType !== 'controlled');
+	const controlled = entities.filter((entity) => entity.entityType === 'controlled');
 
+	for (const group of [premoved, controlled] as const) {
+		for (const entity of group) {
+			setTurnChoices(combat, entity, makeTurnChoices(entity));
+		}
+	}
+}
+
+function teamTurnOrder(
+	combat: CombatState,
+): Array<Array<CombatEntity>> {
+	if (combat.hasPriority === 'party') {
+		return [combat.entities.party, combat.entities.encounters];
+	}
+	return [combat.entities.encounters, combat.entities.party];
+}
+
+function splitTickStatuses(
+	statuses: ReturnType<typeof audit>['statuses'],
+): {
+	damage: Array<'burn' | 'decay'>;
+	remaining: Array<Exclude<keyof CombatEntity['hasStatus'], 'burn' | 'decay' | 'wound'>>;
+} {
+	return {
+		damage: statuses.filter((status): status is 'burn' | 'decay' =>
+			status === 'burn' || status === 'decay',
+		),
+		remaining: statuses.filter(
+			(status): status is Exclude<typeof status, 'burn' | 'decay' | 'wound'> =>
+				status !== 'burn' &&
+				status !== 'decay' &&
+				status !== 'wound',
+		),
+	};
+}
+
+function runEntityTurn(
+	combat: CombatState,
+	entity: CombatEntity,
+): void {
+	if (entity.isDead) {
+		cleanupEntity(entity);
+		return;
+	}
+
+	const audits = audit(entity);
+	const statuses = splitTickStatuses(audits.statuses);
+
+	if (statuses.damage.length > 0) {
+		tickStatuses(combat, entity, statuses.damage);
+	}
+
+	if (!entity.isDead) {
+		for (const turnChoice of entity.turnChoices) {
+			if (executeTurnChoice(combat, entity, turnChoice)) {
+				break;
+			}
+		}
+	}
+
+	if (statuses.remaining.length > 0) {
+		tickStatuses(combat, entity, statuses.remaining);
+	}
+	if (audits.attunements.length > 0) {
+		tickAttunements(combat, entity, audits.attunements);
+	}
+	if (audits.ignoresStatuses.length > 0) {
+		tickIgnoresStatuses(combat, entity, audits.ignoresStatuses);
+	}
+	if (audits.cooldowns.length > 0) {
+		tickCooldowns(combat, entity, audits.cooldowns);
+	}
+	cleanupEntity(entity);
+}
 
 export function combatLoop(
 	combat: CombatState,
 ): void {
 	while (true) {
-		// turn choices
-		const entities = [...combat.entities.encounters, ...combat.entities.party];
-		const premoved = entities.filter(entity => entity.entityType !== 'controlled');
-		const controlled = entities.filter(entity => entity.entityType === 'controlled');
-		for (const group of [premoved, controlled] as const) {
-			for (const entity of group) {
-				setTurnChoices(combat, entity, entity.turnChoices);
-			}
-		}
+		refreshTurnChoices(combat);
 
-		// for team of combat.entities
-		let turnOrder = [combat.entities.encounters];
-		let gainsPriority: EntityGroup = 'encounters';
-		if (combat.hasPriority === 'party') {
-			turnOrder = [combat.entities.party, ...turnOrder];
-			gainsPriority = 'party';
-		} else {
-			turnOrder = [...turnOrder, combat.entities.party];
-		}
-		for (const team of turnOrder) {
+		const gainsPriority: EntityGroup =
+			combat.hasPriority === 'party'
+				? 'encounters'
+				: 'party';
+
+		for (const team of teamTurnOrder(combat)) {
 			for (const entity of team) {
-				const audits = audit(entity);
-
-				// tick sick
-				const sick = audits.statuses.filter(
-					status => status === 'sick');
-				if (sick.length > 0) {
-					if (tickStatuses(combat, entity, ['sick'], 'up')) {
-						break;
-					}
-				}
-
-				// tick damage statuses
-				const damageStatuses = audits.statuses.filter(
-					status => status === 'burn' || 'decay');
-				if (damageStatuses.length > 0) {
-					if (tickStatuses(combat, entity, damageStatuses)) {
-						break;
-					}
-				}
-
-				// execute turn choices
-				for (const turnChoice of entity.turnChoices) {
-					if (turnChoiceDisqualified(entity, turnChoice) ||
-						executeTurnChoice(combat, entity, turnChoice)
-					) {
-						break;
-					}
-				}
-
-				// tick remaining statuses
-				const remainingStatuses = audits.statuses.filter(
-					status => status !== 'sick' || 'burn' || 'decay'
-				);
-				if (remainingStatuses.length > 0) {
-					if (tickStatuses(combat, entity, remainingStatuses)) {
-						break;
-					}
-				}
-
-				// tick attunements
-				if (audits.attunements.length > 0) {
-					tickAttunements(entity, audits.attunements);
-				}
-				// tick ignoresStatuses
-				if (audits.ignoresStatuses.length > 0) {
-					tickIgnoresStatuses(entity, audits.ignoresStatuses);
-				}
-				// tick cooldowns
-				if (audits.cooldowns.length > 0) {
-					tickCooldowns(combat, entity, audits.cooldowns);
-				}
-
-				// cleanup temp vars on entity
-				cleanupEntity(entity);
-
-				//end entity turn
+				runEntityTurn(combat, entity);
 			}
-			// end team turns
 		}
-		// turn-update-combatState
+
 		combat.hasPriority = gainsPriority;
 		combat.turn += 1;
-	} 
+	}
 }

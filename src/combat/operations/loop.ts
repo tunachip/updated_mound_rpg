@@ -8,14 +8,18 @@ import { requireCtx } from './helpers.ts';
 export function loop(
 	ctx: OperationContext
 ): Array<StateChange> {
-	requireCtx('loop', ctx, ['move']);
+	requireCtx('loop', ctx, ['move', 'operations']);
 
-	const operations = ctx.operations ?? ctx.move.loopOperations;
+	const operations = ctx.operations;
 	if (operations.length === 0) {
 		return [];
 	}
 
-	const times = Math.max(0, ctx.move.baseIterations + ctx.caster.extraIterations);
+	const totalIterations = 
+		(ctx.move?.baseIterations ?? 1) +
+		ctx.caster.extraIterations;
+	
+	const times = Math.max(0, totalIterations);
 	if (times === 0) {
 		return [];
 	}

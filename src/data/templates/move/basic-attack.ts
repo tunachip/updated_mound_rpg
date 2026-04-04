@@ -1,15 +1,8 @@
 // src/data/templates/move/basic-attack.ts
 
 import type { DamageElement } from '../../../shared';
-import {
-	applyAttunement,
-	attack,
-	loop,
-	moveMetadata,
-	operation,
-	selfTargets,
-} from '../../../combat/operations/index.ts';
 import type { MoveTemplate } from './types.ts';
+import { applyAttunement, attack, loop, moveMetadata, operation, selfTargets } from '../../../combat/operations/index.ts';
 
 export function createBasicAttackMove(
 	id: string,

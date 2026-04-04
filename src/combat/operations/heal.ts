@@ -17,7 +17,7 @@ export function heal (
 		const after = Math.min(target.maxHp, before + amount);
 		intents.push({
 			host: target,
-			field: ['maxHp'],
+			field: ['hp'],
 			before: before,
 			after: after,
 		});
@@ -34,7 +34,7 @@ export function fullHeal (
 		if (target.isDead) continue;
 		intents.push({
 			host: target,
-			field: ['maxHp'],
+			field: ['hp'],
 			before: target.hp,
 			after: target.maxHp,
 		});

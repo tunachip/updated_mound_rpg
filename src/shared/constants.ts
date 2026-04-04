@@ -13,7 +13,7 @@ export const DamageElements = [
 export const Statuses = [
 	'burn',				// take 1 fire damage on ticked
 	'decay',			// take 1 force damage on ticked
-	'wound',			// take 1 vital damage for each wound when shields break
+	'wound',			// take 1 vital damage for each wound when becoming bloody
 	'curse',			// damage reduces maxHp in addition to damage
 	'regen',			// gain 1 HP at start of turn
 	'focus',			// gain 1 AP at start of turn

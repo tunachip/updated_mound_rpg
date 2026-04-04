@@ -37,7 +37,7 @@ export function executeTurnChoice(
 			...resolution.cancelled,
 		);
 		if (resolution.breaks || result.breaks) {
-			return false;
+			return true;
 		}
 	}
 

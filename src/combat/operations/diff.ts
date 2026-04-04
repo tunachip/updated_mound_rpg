@@ -32,7 +32,12 @@ function isCombatMove(
 function isCombatState(
 	host: StateChangeHost
 ): host is CombatState {
-	return 'turn' in host && 'entities' in host && 'listeners' in host && 'eventLog' in host;
+	return (
+		'turn' in host &&
+		'entities' in host &&
+		'listeners' in host &&
+		'eventLog' in host
+	);
 }
 
 function hostPrefix(

@@ -63,6 +63,7 @@ function makeEntity(
 		extraIterations: 0,
 		isDead: false,
 		shieldsBroken: false,
+		isBloody: false,
 		curseChance: 0,
 		attunedTo: makeBooleanRecord(DamageElements),
 		turnsAttuned: makeNumberRecord(DamageElements),
@@ -77,6 +78,7 @@ function makeEntity(
 		blessings: [],
 		turnChoices: [],
 		dodges: 0,
+		knowledge: [],
 		...overrides,
 	};
 }
@@ -400,13 +402,14 @@ function buildFixture(): {
 	});
 
 	const encounters = DamageElements.map((element, index) => {
+		const maxHp = 12 + index;
 		const encounter = makeEntity(
 			`entity_enemy_${element}`,
 			`${element[0].toUpperCase()}${element.slice(1)} Eidolon`,
 			{
 				entityType: 'forecasted',
-				hp: 12 + index,
-				maxHp: 20 + index,
+				hp: maxHp,
+				maxHp,
 				energy: 2,
 				maxEnergy: 2,
 				shields: index % 3,
@@ -430,11 +433,12 @@ function buildFixture(): {
 		targets: defaultTargeting,
 	})) as Array<TurnChoice>;
 
-	const combat: CombatState = {
-		turn: 1,
-		entities: {
-			party: [player],
-			encounters,
+		const combat: CombatState = {
+			turn: 1,
+			hasPriority: 'party',
+			entities: {
+				party: [player],
+				encounters,
 		},
 		listeners: [],
 		eventLog: [],

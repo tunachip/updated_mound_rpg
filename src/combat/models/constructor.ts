@@ -131,9 +131,11 @@ export function buildCombatEntityFromTemplate(
 ): CombatEntity {
 	const entity = buildCombatEntity(template);
 	entity.moves = template.moves.map(([moveTemplate, fragments]) =>
-		buildCombatMove(moveTemplate, fragments, entity));
+		buildCombatMove(moveTemplate, fragments, entity)
+	);
 	entity.blessings = template.blessings.map((blessingTemplate) =>
-		buildCombatBlessing(blessingTemplate, entity));
+		buildCombatBlessing(blessingTemplate, entity)
+	);
 	return entity;
 }
 
@@ -152,6 +154,7 @@ export function buildCombatEntity(
 		extraIterations: 0,
 		isDead: false,
 		shieldsBroken: false,
+		isBloody: false,
 		curseChance: 0,
 		attunedTo: createRecord(DamageElements, false),
 		turnsAttuned: createRecord(DamageElements, 0),
@@ -166,6 +169,7 @@ export function buildCombatEntity(
 		blessings: [],
 		turnChoices: [],
 		dodges: 0,
+		knowledge: [],
 	};
 }
 

@@ -11,7 +11,7 @@ export function buildCombatState(
 ): CombatState {
 	return {
 		turn: 0,
-		hasPriority: (['party', 'encounters'] as const)[randomNumber(0,1)],
+		hasPriority: (['party', 'encounters'] as const)[randomNumber(0, 2)],
 		entities: {
 			encounters: buildCombatEntities(encounters),
 			party: buildCombatEntities(party),

@@ -2,6 +2,7 @@
 
 import type { DamageElement, EntityType, MoveType, Status, TargetType } from '../../shared';
 import type { Listener, Operation, TargetMatrix } from '../operations';
+import type { GoalHierarchy } from '../ai';
 
 export interface CombatTargetingRules {
 	type: TargetType;
@@ -11,11 +12,13 @@ export interface CombatTargetingRules {
 export interface TurnChoice {
 	move: CombatMove;
 	targets: TargetMatrix;
+	isFocus?: boolean;
 }
 
 export interface CombatEntity {
 	id: string;
 	name: string;
+	level: number;
 	entityType: EntityType;
 	hp: number;
 	maxHp: number;
@@ -41,20 +44,22 @@ export interface CombatEntity {
 	turnChoices: Array<TurnChoice>;
 	dodges: number;
 	knowledge: Array<any>;
+	goals: GoalHierarchy;
 }
 
 export interface CombatMove {
 	id: string;
 	name: string;
 	description: string;
-	element: DamageElement;
-	moveType: MoveType;
+	element: DamageElement | 'neutral';
+	moveType: MoveType | 'focus';
 	owner: CombatEntity;
 	targetType: CombatTargetingRules;
 	baseDamage: number;
 	baseIterations: number;
 	cooldownTurns: number;
 	isBound: boolean;
+	canBeChainedInto: boolean;
 	ignoresStatuses: Array<Status>;
 	operations: Array<Operation>;
 	loopOperations: Array<Operation>;

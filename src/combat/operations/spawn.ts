@@ -61,14 +61,18 @@ function boundaryIndex(
 export function captureEntityBoundary(
 	ctx: OperationContext,
 ): CapturedEntityBoundary | null {
-	requireCtx('captureEntityBoundary', ctx, ['combat', 'entityTeam', 'relativeEntityIndex']);
+	requireCtx('captureEntityBoundary', ctx,
+		['combat', 'entityTeam', 'relativeEntityIndex']
+	);
 	const { entityTeam, relativeEntityIndex } = ctx;
+
 	const team = ctx.combat.entities[entityTeam];
 	const anchor = findAnchorEntity(ctx, entityTeam);
 	if (!anchor) {
 		return null;
 	}
-	const anchorIndex = team.findIndex((entity) => entity.id === anchor.id);
+	const anchorIndex = team.findIndex(
+		(entity) => entity.id === anchor.id);
 	if (anchorIndex < 0) return null;
 
 	const insertionIndex = clampIndex(
@@ -150,7 +154,9 @@ export function spawnEntity(
 	ctx: OperationContext
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
-	requireCtx('spawnEntity', ctx, ['combat', 'template', 'amount', 'entityTeam']);
+	requireCtx('spawnEntity', ctx,
+		['combat', 'template', 'amount', 'entityTeam']
+	);
 	const { template, amount, entityTeam } = ctx;
 
 	const templates: Array<EntityTemplate> = [];

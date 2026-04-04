@@ -24,5 +24,7 @@ export * from './register-listener.ts';
 export * from './shield.ts';
 export * from './spawn.ts';
 export * from './status.ts';
+export * from './tick.ts';
 export * from './loop.ts';
 export * from './dodge.ts';
+export * from './open-wounds.ts';
