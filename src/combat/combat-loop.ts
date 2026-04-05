@@ -1,7 +1,11 @@
 // src/combat/combat-loop.ts
 
 import type { CombatEntity, CombatState, TurnChoice } from '.';
-import { hydrateCombatGoals } from './ai/goals.ts';
+import {
+	hydrateAiGoalListeners,
+	hydrateCombatGoals,
+	primeAiPredictionCache,
+} from './ai/index.ts';
 import {
 	audit,
 	cleanupEntity,
@@ -34,6 +38,8 @@ function refreshTurnChoices(
 	combat: CombatState,
 ): void {
 	hydrateCombatGoals(combat);
+	hydrateAiGoalListeners(combat);
+	primeAiPredictionCache(combat);
 
 	const entities = [...combat.entities.encounters, ...combat.entities.party];
 	const premoved = entities.filter((entity) => entity.entityType !== 'controlled');

@@ -1,5 +1,6 @@
 // src/combat/operations/resolver.ts
 
+import { markAiPredictionCacheDirty } from '../ai/cache.ts';
 import type { CombatBlessing, CombatEntity, CombatMove } from '../models';
 import type { CombatState } from '../types.ts';
 import {
@@ -75,6 +76,22 @@ function createListenerContext(
 		breakSequence: false,
 		sideEffects: [],
 	};
+}
+
+function revealBlessingOnTrigger(
+	blessing: CombatBlessing | null,
+): Array<StateChange> {
+	if (!blessing || blessing.isHidden === false) {
+		return [];
+	}
+
+	return [{
+		host: blessing,
+		field: ['isHidden'],
+		before: true,
+		after: false,
+		signal: `blessing.revealed.${blessing.id}`,
+	}];
 }
 
 function executeListenerOperations(
@@ -154,6 +171,7 @@ function resolveListenerType(
 
 	const matching = matchingListeners(combat, phase, pendingChange, move);
 	for (const registered of matching) {
+		sideEffects.push(...revealBlessingOnTrigger(registered.blessing));
 		const ctx = createListenerContext(
 			combat,
 			registered.owner,
@@ -292,6 +310,7 @@ export function resolveStateChange(
 	}
 
 	applyStateChange(interruptResult.updatedChange);
+	markAiPredictionCacheDirty(combat);
 	if (interruptResult.updatedChange.host === combat &&
 		  interruptResult.updatedChange.field[0] === 'entities'
 	) {

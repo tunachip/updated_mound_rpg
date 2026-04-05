@@ -52,6 +52,7 @@ export interface CombatMove {
 	id: string;
 	name: string;
 	description: string;
+	isHidden: boolean;
 	element: DamageElement | 'neutral';
 	moveType: MoveType | 'focus';
 	owner: CombatEntity;
@@ -70,6 +71,7 @@ export interface CombatBlessing {
 	id: string;
 	name: string;
 	description: string;
+	isHidden: boolean;
 	element: DamageElement;
 	owner: CombatEntity;
 	cooldownTurns: number;

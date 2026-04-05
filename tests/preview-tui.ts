@@ -437,15 +437,16 @@ function buildFixture(): {
 		targets: defaultTargeting,
 	})) as Array<TurnChoice>;
 
-		const combat: CombatState = {
-			turn: 1,
-			hasPriority: 'party',
-			entities: {
-				party: [player],
-				encounters,
+	const combat: CombatState = {
+		turn: 1,
+		hasPriority: 'party',
+		entities: {
+			party: [player],
+			encounters,
 		},
 		listeners: [],
 		eventLog: [],
+		aiCache: null,
 	};
 
 	return { combat, player, encounters, moves };

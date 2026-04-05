@@ -3,7 +3,7 @@
 import type { CombatState } from '.';
 import type { EntityTemplate } from '../data/templates';
 import { buildCombatEntities } from './models/constructor.ts';
-import { hydrateCombatGoals } from './ai/goals.ts';
+import { hydrateAiGoalListeners, hydrateCombatGoals } from './ai/index.ts';
 import { randomNumber } from './operations/index.ts';
 
 export function buildCombatState(
@@ -19,7 +19,9 @@ export function buildCombatState(
 		},
 		listeners: [],
 		eventLog: [],
+		aiCache: null,
 	};
 	hydrateCombatGoals(combat);
+	hydrateAiGoalListeners(combat);
 	return combat;
 }

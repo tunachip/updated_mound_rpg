@@ -22,6 +22,7 @@ export * from './max-status.ts';
 export * from './move-element.ts';
 export * from './pending-change.ts';
 export * from './register-listener.ts';
+export * from './reveal.ts';
 export * from './shield.ts';
 export * from './spawn.ts';
 export * from './status.ts';

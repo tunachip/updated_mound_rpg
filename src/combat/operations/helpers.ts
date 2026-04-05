@@ -172,3 +172,19 @@ export function changeAfterIs(
 ): ListenerCondition {
 	return (ctx) => Object.is(ctx.change.after, value);
 }
+
+export function changeAfterGreaterThanBefore(
+): ListenerCondition {
+	return (ctx) =>
+		typeof ctx.change.before === 'number' &&
+		typeof ctx.change.after === 'number' &&
+		ctx.change.after > ctx.change.before;
+}
+
+export function changeAfterLessThanBefore(
+): ListenerCondition {
+	return (ctx) =>
+		typeof ctx.change.before === 'number' &&
+		typeof ctx.change.after === 'number' &&
+		ctx.change.after < ctx.change.before;
+}

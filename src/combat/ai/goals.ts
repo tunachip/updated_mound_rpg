@@ -11,9 +11,9 @@ const SELF_STATUS_GOALS = [
 	'wound',
 	'curse',
 	'stun',
+	'anger',
 	'sleep',
 	'sick',
-	'anger',
 ] as const satisfies Array<Status>;
 
 export const defaultAiTuning: AiTuning = {

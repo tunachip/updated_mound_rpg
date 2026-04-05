@@ -1,6 +1,6 @@
 // src/combat/turn/turn-cleanup.ts
 
-import { CombatEntity } from "../models";
+import type { CombatEntity } from '../models/index.ts';
 
 export function cleanupEntity (
 	entity: CombatEntity
