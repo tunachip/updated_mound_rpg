@@ -3,9 +3,9 @@
 import { DamageElements, Statuses } from '../../shared/index.ts';
 
 import type { Goal } from './types.ts';
+import type { CombatTeam } from '../../shared';
 import type {
 	AiPredictionCache,
-	AwarenessTeam,
 	BranchPrediction,
 	ProjectedChoice,
 	StateChoiceCatalog,
@@ -50,13 +50,26 @@ export interface ChoiceAnalysis {
 	futureActorIds: Array<string>;
 }
 
-function sameField(
-	left: Array<string>,
-	right: Array<string>,
-): boolean {
-	return left.length === right.length &&
-		left.every((segment, index) => segment === right[index]);
+interface EntityScoreSummary {
+	total: number;
+	contributions: Array<GoalContribution>;
 }
+
+type GoalFieldIndex = WeakMap<object, Map<string, Array<Goal>>>;
+type StateAnalysisCache = Map<string, Map<string, Array<ChoiceAnalysis>>>;
+
+const goalFieldIndexCache = new WeakMap<
+	CombatEntity,
+	{
+		signature: string;
+		index: GoalFieldIndex;
+	}
+>();
+
+const analysisCache = new WeakMap<
+	AiPredictionCache,
+	StateAnalysisCache
+>();
 
 function readPath(
 	host: unknown,
@@ -69,20 +82,10 @@ function readPath(
 	return current;
 }
 
-function projectedValue(
-	goal: Goal,
-	changes: Array<StateChange>,
-): unknown {
-	for (let i = changes.length - 1; i >= 0; i -= 1) {
-		const change = changes[i];
-		if (change.host !== goal.host) {
-			continue;
-		}
-		if (sameField(change.field, goal.field)) {
-			return change.after;
-		}
-	}
-	return readPath(goal.host, goal.field);
+function fieldPathKey(
+	field: Array<string>,
+): string {
+	return field.join('.');
 }
 
 function valueDistance(
@@ -98,12 +101,11 @@ function valueDistance(
 	return Object.is(value, target) ? 0 : 1;
 }
 
-function scoreGoal(
+function scoreGoalAfter(
 	goal: Goal,
-	changes: Array<StateChange>,
+	after: unknown,
 ): number {
 	const before = readPath(goal.host, goal.field);
-	const after = projectedValue(goal, changes);
 	const beforeDistance = valueDistance(before, goal.value);
 	const afterDistance = valueDistance(after, goal.value);
 
@@ -119,7 +121,7 @@ function scoreGoal(
 function teamOfEntity(
 	combat: CombatState,
 	entity: CombatEntity,
-): AwarenessTeam | null {
+): CombatTeam | null {
 	if (combat.entities.party.some((member) => member.id === entity.id)) {
 		return 'party';
 	}
@@ -154,7 +156,7 @@ function enemiesOf(
 
 function visibleMovesForAwareness(
 	combat: CombatState,
-	awarenessTeam: AwarenessTeam,
+	awarenessTeam: CombatTeam,
 	subject: CombatEntity,
 ): Array<CombatMove> {
 	const subjectTeam = teamOfEntity(combat, subject);
@@ -467,33 +469,81 @@ function scoreChoiceBias(
 	return score;
 }
 
-function goalContributionsForEntity(
+function getGoalFieldIndex(
 	entity: CombatEntity,
-	changes: Array<StateChange>,
-): Array<GoalContribution> {
-	return entity.goals
-		.map((goal) => ({
-			goal,
-			score: scoreGoal(goal, changes),
-		}))
-		.filter(({ score }) => score !== 0)
-		.sort((left, right) => Math.abs(right.score) - Math.abs(left.score));
+): GoalFieldIndex {
+	const signature = goalSignature(entity);
+	const cached = goalFieldIndexCache.get(entity);
+	if (cached && cached.signature === signature) {
+		return cached.index;
+	}
+
+	const index: GoalFieldIndex = new WeakMap();
+	for (const goal of entity.goals) {
+		const host = goal.host as object;
+		const hostMap = index.get(host) ?? new Map<string, Array<Goal>>();
+		const key = fieldPathKey(goal.field);
+		const goalsAtField = hostMap.get(key) ?? [];
+		goalsAtField.push(goal);
+		hostMap.set(key, goalsAtField);
+		index.set(host, hostMap);
+	}
+
+	goalFieldIndexCache.set(entity, {
+		signature,
+		index,
+	});
+	return index;
 }
 
-function scoreChangesForEntity(
+function summarizeEntityScore(
 	entity: CombatEntity,
 	changes: Array<StateChange>,
-): number {
-	return entity.goals.reduce(
-		(total, goal) => total + scoreGoal(goal, changes),
-		0,
-	);
+): EntityScoreSummary {
+	const index = getGoalFieldIndex(entity);
+	const scored = new Map<string, GoalContribution>();
+
+	for (const change of changes) {
+		const hostMap = index.get(change.host as object);
+		if (!hostMap) {
+			continue;
+		}
+
+		const goals = hostMap.get(fieldPathKey(change.field));
+		if (!goals) {
+			continue;
+		}
+
+		for (const goal of goals) {
+			const score = scoreGoalAfter(goal, change.after);
+			if (score === 0) {
+				scored.delete(goal.id);
+				continue;
+			}
+
+			scored.set(goal.id, {
+				goal,
+				score,
+			});
+		}
+	}
+
+	const contributions = [...scored.values()]
+		.sort((left, right) => Math.abs(right.score) - Math.abs(left.score));
+
+	return {
+		total: contributions.reduce(
+			(total, contribution) => total + contribution.score,
+			0,
+		),
+		contributions,
+	};
 }
 
 function moveChoices(
 	combat: CombatState,
 	actor: CombatEntity,
-	awarenessTeam: AwarenessTeam,
+	awarenessTeam: CombatTeam,
 ): Array<TurnChoice> {
 	const choices: Array<TurnChoice> = [];
 
@@ -518,7 +568,7 @@ function moveChoices(
 function availableChoicesForAwareness(
 	combat: CombatState,
 	actor: CombatEntity,
-	awarenessTeam: AwarenessTeam,
+	awarenessTeam: CombatTeam,
 ): Array<TurnChoice> {
 	return [
 		...moveChoices(combat, actor, awarenessTeam),
@@ -612,9 +662,61 @@ function ensureAiPredictionCache(
 	if (combat.aiCache.currentSignature !== currentSignature) {
 		setAiPredictionCacheRoot(combat.aiCache, currentSignature);
 		pruneAiPredictionCache(combat.aiCache, currentSignature);
+		pruneStateAnalysisCache(combat.aiCache, currentSignature);
 	}
 
 	return combat.aiCache;
+}
+
+function pruneStateAnalysisCache(
+	cache: AiPredictionCache,
+	currentSignature: string,
+): void {
+	const stateCaches = analysisCache.get(cache);
+	if (!stateCaches) {
+		return;
+	}
+
+	const reachable = new Set<string>([currentSignature]);
+	for (const awarenessTeam of ['party', 'encounters'] as const) {
+		for (const signature of cache.catalogs[awarenessTeam].keys()) {
+			reachable.add(signature);
+		}
+		for (const signature of cache.branches[awarenessTeam].keys()) {
+			reachable.add(signature);
+		}
+	}
+
+	for (const signature of [...stateCaches.keys()]) {
+		if (!reachable.has(signature)) {
+			stateCaches.delete(signature);
+		}
+	}
+
+	analysisCache.set(cache, stateCaches);
+}
+
+function getStateAnalysisCache(
+	cache: AiPredictionCache,
+	signature: string,
+): Map<string, Array<ChoiceAnalysis>> {
+	const stateCaches = analysisCache.get(cache) ?? new Map();
+	let actorCache = stateCaches.get(signature);
+	if (!actorCache) {
+		actorCache = new Map();
+		stateCaches.set(signature, actorCache);
+		analysisCache.set(cache, stateCaches);
+	}
+	return actorCache;
+}
+
+function planningEntities(
+	combat: CombatState,
+): Array<CombatEntity> {
+	return [
+		...combat.entities.encounters,
+		...combat.entities.party,
+	].filter((entity) => entity.isDead === false);
 }
 
 function warmStateChoiceCatalogs(
@@ -628,7 +730,7 @@ function warmStateChoiceCatalogs(
 
 function buildStateChoiceCatalog(
 	combat: CombatState,
-	awarenessTeam: AwarenessTeam,
+	awarenessTeam: CombatTeam,
 	signature: string,
 ): StateChoiceCatalog {
 	const actorChoices = new Map<string, Array<ProjectedChoice>>();
@@ -658,7 +760,7 @@ function buildStateChoiceCatalog(
 function getStateChoiceCatalog(
 	combat: CombatState,
 	cache: AiPredictionCache,
-	awarenessTeam: AwarenessTeam,
+	awarenessTeam: CombatTeam,
 	signature = combatStateSignature(combat),
 ): StateChoiceCatalog {
 	const catalogs = cache.catalogs[awarenessTeam];
@@ -672,7 +774,7 @@ function getStateChoiceCatalog(
 
 function getStateBranchBucket(
 	cache: AiPredictionCache,
-	awarenessTeam: AwarenessTeam,
+	awarenessTeam: CombatTeam,
 	signature: string,
 ): Map<string, BranchPrediction> {
 	const stateBranches = cache.branches[awarenessTeam].get(signature);
@@ -694,7 +796,7 @@ function branchPredictionKey(
 
 function predictBestBranch(
 	combat: CombatState,
-	awarenessTeam: AwarenessTeam,
+	awarenessTeam: CombatTeam,
 	actor: CombatEntity,
 	remainingQueue: Array<string>,
 	cache: AiPredictionCache,
@@ -752,7 +854,7 @@ function predictBestBranch(
 		rollbackStateChanges(applied);
 
 		const utility =
-			scoreChangesForEntity(actor, combined) +
+			summarizeEntityScore(actor, combined).total +
 			projection.bias;
 
 		if (!bestBranch || utility > bestBranch.utility) {
@@ -777,16 +879,16 @@ export function primeAiPredictionCache(
 
 export { markAiPredictionCacheDirty };
 
-export function analyzeTurnChoices(
+function analyzeTurnChoicesForEntity(
 	combat: CombatState,
 	entity: CombatEntity,
+	cache: AiPredictionCache,
 ): Array<ChoiceAnalysis> {
 	const awarenessTeam = teamOfEntity(combat, entity);
 	if (!awarenessTeam || entity.isDead) {
 		return [];
 	}
 
-	const cache = ensureAiPredictionCache(combat);
 	const futureQueue = predictiveTurnQueue(
 		combat,
 		entity,
@@ -804,16 +906,8 @@ export function analyzeTurnChoices(
 		const parentSignature = cache.currentSignature;
 		const applied = applyStateChanges(projection.immediateChanges);
 		const childSignature = combatStateSignature(combat);
-		recordAiPredictionChild(
-			cache,
-			parentSignature,
-			childSignature,
-		);
-		warmStateChoiceCatalogs(
-			combat,
-			cache,
-			childSignature,
-		);
+		recordAiPredictionChild(cache, parentSignature, childSignature);
+		warmStateChoiceCatalogs(combat, cache, childSignature);
 
 		let futureChanges: Array<StateChange> = [];
 		const next = nextActorFromQueue(combat, futureQueue);
@@ -826,34 +920,94 @@ export function analyzeTurnChoices(
 				cache,
 			).changes;
 		}
-
 		const combined = mergeStateChanges([
 			...projection.immediateChanges,
 			...futureChanges,
 		]);
 		rollbackStateChanges(applied);
-
-		const contributions = goalContributionsForEntity(entity, combined);
+		const scoreSummary = summarizeEntityScore(entity, combined);
 		const score =
-			scoreChangesForEntity(entity, combined) +
+			scoreSummary.total +
 			projection.bias;
-
 		return {
 			choice: projection.choice,
 			score,
-			contributions,
+			contributions: scoreSummary.contributions,
 			predictedChanges: combined,
 			futureActorIds: [...futureQueue],
 		};
 	});
-
 	ranked.sort((left, right) => right.score - left.score);
 	return ranked;
+}
+
+export function analyzeAllTurnChoices(
+	combat: CombatState,
+): Map<string, Array<ChoiceAnalysis>> {
+	const cache = ensureAiPredictionCache(combat);
+	const stateCache = getStateAnalysisCache(cache, cache.currentSignature);
+
+	for (const entity of planningEntities(combat)) {
+		if (!stateCache.has(entity.id)) {
+			stateCache.set(
+				entity.id,
+				analyzeTurnChoicesForEntity(combat, entity, cache),
+			);
+		}
+	}
+
+	return stateCache;
+}
+
+export function analyzeTurnChoicesForEntities(
+	combat: CombatState,
+	entities: Array<CombatEntity>,
+): Map<string, Array<ChoiceAnalysis>> {
+	const cache = ensureAiPredictionCache(combat);
+	const stateCache = getStateAnalysisCache(cache, cache.currentSignature);
+
+	for (const entity of entities) {
+		if (entity.isDead || stateCache.has(entity.id)) {
+			continue;
+		}
+		stateCache.set(
+			entity.id,
+			analyzeTurnChoicesForEntity(combat, entity, cache),
+		);
+	}
+
+	return new Map(
+		entities.map((entity) => [entity.id, stateCache.get(entity.id) ?? []]),
+	);
+}
+
+export function analyzeTurnChoices(
+	combat: CombatState,
+	entity: CombatEntity,
+): Array<ChoiceAnalysis> {
+	return analyzeAllTurnChoices(combat).get(entity.id) ?? [];
+}
+
+export function calculateAllTurnChoices(
+	combat: CombatState,
+): Map<string, Array<TurnChoice>> {
+	return new Map(
+		[...analyzeAllTurnChoices(combat).entries()].map(
+			([entityId, analyses]) => [
+				entityId,
+				analyses.map(
+					({ choice }) => choice
+				),
+			]
+		),
+	);
 }
 
 export function calculateTurnChoices(
 	combat: CombatState,
 	entity: CombatEntity,
 ): Array<TurnChoice> {
-	return analyzeTurnChoices(combat, entity).map(({ choice }) => choice);
+	return analyzeTurnChoices(combat, entity).map(
+		({ choice }) => choice
+	);
 }

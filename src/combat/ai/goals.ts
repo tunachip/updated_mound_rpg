@@ -177,20 +177,19 @@ export function mergeDefaultGoals(
 	const merged = new Map(
 		existing.map((goal) => [goal.id, goal] as const),
 	);
-
 	for (const goal of defaults) {
 		if (!merged.has(goal.id)) {
 			merged.set(goal.id, goal);
 		}
 	}
-
 	return [...merged.values()];
 }
 
 export function hydrateCombatGoals(
 	combat: CombatState,
 ): void {
-	for (const entity of [...combat.entities.party, ...combat.entities.encounters]) {
+	const entities = [...combat.entities.party, ...combat.entities.encounters];
+	for (const entity of entities) {
 		const allies = combat.entities.party.includes(entity)
 			? combat.entities.party
 			: combat.entities.encounters;

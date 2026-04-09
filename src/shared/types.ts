@@ -9,3 +9,4 @@ export type MoveType						= typeof Constants.MoveTypes[number];
 export type ListenerType				= typeof Constants.ListenerTypes[number];
 export type TargetType					= typeof Constants.TargetTypes[number];
 export type ModifierExpression  = typeof Constants.ModifierExpressions[number];
+export type CombatTeam 					= typeof Constants.CombatTeams[number];

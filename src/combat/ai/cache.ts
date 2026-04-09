@@ -2,8 +2,8 @@
 
 import type { TurnChoice } from '../models';
 import type { StateChange } from '../operations';
-
-export type AwarenessTeam = 'party' | 'encounters';
+import type { CombatTeam } from '../../shared';
+import { CombatTeams } from '../../shared';
 
 export interface ProjectedChoice {
 	choice: TurnChoice;
@@ -23,8 +23,8 @@ export interface BranchPrediction {
 
 export interface AiPredictionCache {
 	currentSignature: string;
-	catalogs: Record<AwarenessTeam, Map<string, StateChoiceCatalog>>;
-	branches: Record<AwarenessTeam, Map<string, Map<string, BranchPrediction>>>;
+	catalogs: Record<CombatTeam, Map<string, StateChoiceCatalog>>;
+	branches: Record<CombatTeam, Map<string, Map<string, BranchPrediction>>>;
 	children: Map<string, Set<string>>;
 }
 
@@ -87,15 +87,15 @@ function collectReachableStateSignatures(
 		if (!signature || reachable.has(signature)) {
 			continue;
 		}
-
 		reachable.add(signature);
-		for (const childSignature of cache.children.get(signature) ?? []) {
-			if (!reachable.has(childSignature)) {
-				pending.push(childSignature);
+
+		const childSignatures = cache.children.get(signature) ?? [];
+		for (const signature of childSignatures) {
+			if (!reachable.has(signature)) {
+				pending.push(signature);
 			}
 		}
 	}
-
 	return reachable;
 }
 
@@ -106,41 +106,35 @@ export function pruneAiPredictionCache(
 	if (!rootSignature) {
 		return;
 	}
-
 	const reachable = collectReachableStateSignatures(cache, rootSignature);
 	reachable.add(rootSignature);
 
-	for (const awarenessTeam of ['party', 'encounters'] as const) {
-		for (const signature of [...cache.catalogs[awarenessTeam].keys()]) {
+	for (const team of CombatTeams) {
+		for (const signature of [...cache.catalogs[team].keys()]) {
 			if (!reachable.has(signature)) {
-				cache.catalogs[awarenessTeam].delete(signature);
+				cache.catalogs[team].delete(signature);
 			}
 		}
-
-		for (const signature of [...cache.branches[awarenessTeam].keys()]) {
+		for (const signature of [...cache.branches[team].keys()]) {
 			if (!reachable.has(signature)) {
-				cache.branches[awarenessTeam].delete(signature);
+				cache.branches[team].delete(signature);
 			}
 		}
 	}
-
 	for (const signature of [...cache.children.keys()]) {
 		if (!reachable.has(signature)) {
 			cache.children.delete(signature);
 			continue;
 		}
-
 		const children = cache.children.get(signature);
 		if (!children) {
 			continue;
 		}
-
 		for (const childSignature of [...children]) {
 			if (!reachable.has(childSignature)) {
 				children.delete(childSignature);
 			}
 		}
-
 		cache.children.set(signature, children);
 	}
 }

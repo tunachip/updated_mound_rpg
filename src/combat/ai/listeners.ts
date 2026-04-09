@@ -42,7 +42,9 @@ function nestedOperations(
 	return [
 		...(operation.ctx?.operations ?? []),
 		...(operation.ctx?.elseOperations ?? []),
-		...(operation.ctx?.listeners ?? []).flatMap((listener) => listener.operations),
+		...(operation.ctx?.listeners ?? []).flatMap(
+			(listener) => listener.operations
+		),
 	];
 }
 
@@ -138,7 +140,11 @@ function scanMoveCapabilities(
 		move.targetType.type === 'self' ||
 		move.targetType.type === 'entity';
 
-	for (const operation of [...move.operations, ...move.loopOperations]) {
+	const operations = [
+	  ...move.operations,
+	  ...move.loopOperations
+	];
+	for (const operation of operations) {
 		scanOperationTree(
 			combat,
 			entity,
@@ -181,10 +187,20 @@ function collectEntityAiCapabilities(
 	};
 
 	for (const move of entity.moves) {
-		scanMoveCapabilities(combat, entity, move, capabilities);
+		scanMoveCapabilities(
+		  combat,
+		  entity,
+		  move,
+		  capabilities
+		);
 	}
 	for (const blessing of entity.blessings) {
-		scanBlessingCapabilities(combat, entity, blessing, capabilities);
+		scanBlessingCapabilities(
+		  combat,
+		  entity,
+		  blessing,
+		  capabilities
+		);
 	}
 
 	return capabilities;
@@ -239,21 +255,20 @@ function buildAiGoalListeners(
 export function hydrateAiGoalListeners(
 	combat: CombatState,
 ): Array<RegisteredRuntimeListener> {
-	const activeOwnerIds = new Set(
-		[...combat.entities.party, ...combat.entities.encounters].map((entity) => entity.id),
-	);
-
+	const entities = [
+		...combat.entities.party,
+		...combat.entities.encounters
+	];
+	const activeOwnerIds = new Set(entities.map((entity) => entity.id));
 	const preserved = combat.listeners.filter(
 		(registered) =>
 			!isAiGoalListener(registered) &&
 			activeOwnerIds.has(registered.owner.id),
 	);
-
 	const generated = [
 		...combat.entities.party,
 		...combat.entities.encounters,
 	].flatMap((entity) => buildAiGoalListeners(combat, entity));
-
 	combat.listeners = [...preserved, ...generated];
 	return combat.listeners;
 }

@@ -187,6 +187,8 @@ export function buildCombatMove(
 ): CombatMove {
 	let move: CombatMove = {
 		id: moveTemplate.id,
+		templateId: moveTemplate.id,
+		fragmentIds: fragments.map((fragment) => fragment.id),
 		name: moveTemplate.name,
 		description: moveTemplate.description,
 		isHidden: true,
@@ -215,6 +217,7 @@ export function buildCombatBlessing(
 ): CombatBlessing {
 	return {
 		id: blessing.id,
+		templateId: blessing.id,
 		name: blessing.name,
 		description: blessing.description,
 		isHidden: true,

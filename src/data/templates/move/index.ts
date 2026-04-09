@@ -27,3 +27,7 @@ export const BasicAttackMoves = [
 	BlowHard,
 	GeneralStrike,
 ];
+
+export const MoveTemplatesById = new Map(
+	BasicAttackMoves.map((move) => [move.id, move] as const),
+);

@@ -3,7 +3,9 @@
 import type { CombatEntity, CombatBlessing, CombatMove } from "../models";
 import type { CombatState } from "../";
 
+
 export type GoalKind = 'approach' | 'prevent' | 'maintain';
+export type GoalHierarchy = Array<Goal>;
 
 export interface Goal {
 	id: string;
@@ -14,8 +16,6 @@ export interface Goal {
 	value: any;
 	weight: number;
 }
-
-export type GoalHierarchy = Array<Goal>;
 
 export interface AiTuning {
 	aggression: number;

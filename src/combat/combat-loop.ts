@@ -10,7 +10,8 @@ import {
 	audit,
 	cleanupEntity,
 	executeTurnChoice,
-	makeTurnChoices,
+	makeAllTurnChoices,
+	makeAllTurnChoicesInWorkers,
 	tickAttunements,
 	tickCooldowns,
 	tickIgnoresStatuses,
@@ -41,14 +42,36 @@ function refreshTurnChoices(
 	hydrateAiGoalListeners(combat);
 	primeAiPredictionCache(combat);
 
+	const plannedChoices = makeAllTurnChoices(combat);
 	const entities = [...combat.entities.encounters, ...combat.entities.party];
-	const premoved = entities.filter((entity) => entity.entityType !== 'controlled');
-	const controlled = entities.filter((entity) => entity.entityType === 'controlled');
 
-	for (const group of [premoved, controlled] as const) {
-		for (const entity of group) {
-			setTurnChoices(combat, entity, makeTurnChoices(combat, entity));
-		}
+	for (const entity of entities) {
+		entity.turnChoices = [];
+		setTurnChoices(
+			combat,
+			entity,
+			plannedChoices.get(entity.id) ?? [],
+		);
+	}
+}
+
+async function refreshTurnChoicesInWorkers(
+	combat: CombatState,
+): Promise<void> {
+	hydrateCombatGoals(combat);
+	hydrateAiGoalListeners(combat);
+	primeAiPredictionCache(combat);
+
+	const plannedChoices = await makeAllTurnChoicesInWorkers(combat);
+	const entities = [...combat.entities.encounters, ...combat.entities.party];
+
+	for (const entity of entities) {
+		entity.turnChoices = [];
+		setTurnChoices(
+			combat,
+			entity,
+			plannedChoices.get(entity.id) ?? [],
+		);
 	}
 }
 
@@ -124,6 +147,28 @@ export function combatLoop(
 ): void {
 	while (true) {
 		refreshTurnChoices(combat);
+
+		const gainsPriority: EntityGroup =
+			combat.hasPriority === 'party'
+				? 'encounters'
+				: 'party';
+
+		for (const team of teamTurnOrder(combat)) {
+			for (const entity of team) {
+				runEntityTurn(combat, entity);
+			}
+		}
+
+		combat.hasPriority = gainsPriority;
+		combat.turn += 1;
+	}
+}
+
+export async function combatLoopAsync(
+	combat: CombatState,
+): Promise<void> {
+	while (true) {
+		await refreshTurnChoicesInWorkers(combat);
 
 		const gainsPriority: EntityGroup =
 			combat.hasPriority === 'party'

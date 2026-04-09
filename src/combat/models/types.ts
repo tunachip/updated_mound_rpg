@@ -50,6 +50,8 @@ export interface CombatEntity {
 
 export interface CombatMove {
 	id: string;
+	templateId?: string;
+	fragmentIds?: Array<string>;
 	name: string;
 	description: string;
 	isHidden: boolean;
@@ -69,6 +71,7 @@ export interface CombatMove {
 
 export interface CombatBlessing {
 	id: string;
+	templateId?: string;
 	name: string;
 	description: string;
 	isHidden: boolean;
