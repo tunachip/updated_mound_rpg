@@ -1,10 +1,11 @@
 ## TODO
 
 ### src/combat/turn/turn-choices.ts
-- [ ] Create AI Choice Logic [[src/combat/turn/turn-choices.ts#L32]]
-- [ ] Create Player Choice Logic [[src/combat/turn/turn-choices.ts#L22]]
+- [x] Create AI Choice Logic #done
+- [x] Create Player Choice Logic #done
 
 
 ## Notes
 
-## Tasks
+Current Tasks:
+- [ ] Create Proper Combat AI System

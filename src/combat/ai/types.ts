@@ -7,6 +7,7 @@ import type { CombatState } from '../types';
 export type CombatObject = CombatEntity | CombatBlessing | CombatMove | CombatState
 export type GoalType = 'approach' | 'prevent' | 'maintain';
 export type GoalHierarchy = Array<Goal>;
+export type TemperamentChoice = 'progressive' | 'conservative' | 'ambivalent';
 
 export interface Goal {
 	id: string;
@@ -24,20 +25,34 @@ interface ProfileField {
 	weight: number;
 }
 
+interface Temperament {
+	progressive: number; // Prefer 'approach' & 'avoid'
+	conservative: number;	// Prefer 'maintain'
+	retaliatory: number; // When Hit, Increments Grudge modifier for Attacker.id
+}
+
+interface ProgressivePriorities {
+	lowHp: number;
+	maxDamage: number;
+	canKill: number;
+}
+
+interface ConservationPriorities {
+	lowHp: number;
+	canSave: number;
+}
+
 export interface AiTuning {
+	temperament: Temperament;
+	progressivePriorities: ProgressivePriorities;
+	conservationPriorities: ConservationPriorities;
+	hasGrudges: boolean;
+	grudges: Record<string, number>;
 
-	// === MOVE TYPE PREFERRANCES ===
-	prefersAttacking: ProfileField;
+	foresight: number | null; // turns ahead ai can think
+	goalWidth: number | null; // number of goals ai can eval at once
+	goalWeightRolloff: number | null; // amount of weight taken off future turns each
 
-	// === OFFENSIVE TRAITS ===
-
-	// Ideal Target Description
-	killsWeakFirst: ProfileField;
-	aggressive: ProfileField;
-	retaliatory: ProfileField;
-
-	// === DEFENSIVE TRAITS ===
-	
 	// Statuses
 	maintainsAllyHp: ProfileField;
 	maintainsHp: ProfileField;
