@@ -5,6 +5,7 @@ export * from './diff.ts';
 export * from './helpers.ts';
 export * from './resolver.ts';
 export * from './attunement.ts';
+export * from './bind.ts';
 export * from './blessing.ts';
 export * from './cooldown.ts';
 export * from './curse-attempt.ts';

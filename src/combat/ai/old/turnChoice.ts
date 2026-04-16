@@ -1,6 +1,6 @@
 // src/combat/ai/turnChoice.ts
 
-import { DamageElements, Statuses } from '../../shared/index.ts';
+import { DamageElements, ElementRelationships, Statuses } from '../../shared/index.ts';
 
 import type { Goal } from './types.ts';
 import type { CombatTeam } from '../../shared';
@@ -58,7 +58,7 @@ interface EntityScoreSummary {
 type GoalFieldIndex = WeakMap<object, Map<string, Array<Goal>>>;
 type StateAnalysisCache = Map<string, Map<string, Array<ChoiceAnalysis>>>;
 
-const goalFieldIndexCache = new WeakMap<CombatEntity, { signature: string; index: GoalFieldIndex; }>();
+const goalFieldIndexCache = new WeakMap<CombatEntity, Map<string, GoalFieldIndex>>();
 
 const analysisCache = new WeakMap<AiPredictionCache, StateAnalysisCache>();
 
@@ -109,6 +109,33 @@ function scoreGoalAfter(
 	}
 }
 
+function resolveForesight(
+	entity: CombatEntity,
+): number {
+	if (entity.aiTuning.foresight != null) {
+		return Math.max(0, entity.aiTuning.foresight);
+	}
+	return Math.max(0, entity.level - 1);
+}
+
+function resolveGoalWidth(
+	entity: CombatEntity,
+): number | null {
+	if (entity.aiTuning.goalWidth == null || entity.aiTuning.goalWidth <= 0) {
+		return null;
+	}
+	return entity.aiTuning.goalWidth;
+}
+
+function resolveGoalWeightRolloff(
+	entity: CombatEntity,
+): number {
+	if (entity.aiTuning.goalWeightRolloff == null) {
+		return 1;
+	}
+	return Math.max(0, Math.min(1, entity.aiTuning.goalWeightRolloff));
+}
+
 function teamOfEntity(
 	combat: CombatState,
 	entity: CombatEntity,
@@ -155,6 +182,18 @@ function visibleMovesForAwareness(
 		return subject.moves;
 	}
 	return subject.moves.filter((move) => move.isHidden === false);
+}
+
+function visibleBlessingsForAwareness(
+	combat: CombatState,
+	awarenessTeam: CombatTeam,
+	subject: CombatEntity,
+) {
+	const subjectTeam = teamOfEntity(combat, subject);
+	if (subjectTeam === awarenessTeam) {
+		return subject.blessings;
+	}
+	return subject.blessings.filter((blessing) => blessing.isHidden === false);
 }
 
 function currentRoundOrder(
@@ -342,6 +381,7 @@ function combinations<T>(
 function targetMatricesForMove(
 	combat: CombatState,
 	caster: CombatEntity,
+	awarenessTeam: CombatTeam,
 	move: CombatMove,
 ): Array<TargetMatrix> {
 	const [minTargets, maxTargets] = move.targetType.range;
@@ -386,12 +426,32 @@ function targetMatricesForMove(
 			}
 			return matrices;
 		}
-		case 'move':
-		case 'blessing':
-			if (minTargets === 0) {
-				return [emptyTargets()];
+		case 'move': {
+			const knownMoves = [
+				...combat.entities.party,
+				...combat.entities.encounters,
+			].flatMap((entity) => visibleMovesForAwareness(combat, awarenessTeam, entity));
+			const matrices: Array<TargetMatrix> = [];
+			for (let count = minTargets; count <= Math.min(maxCount, knownMoves.length); count += 1) {
+				for (const combo of combinations(knownMoves, count)) {
+					matrices.push(makeTargets({ moves: combo }));
+				}
 			}
-			return [];
+			return matrices;
+		}
+		case 'blessing': {
+			const knownBlessings = [
+				...combat.entities.party,
+				...combat.entities.encounters,
+			].flatMap((entity) => visibleBlessingsForAwareness(combat, awarenessTeam, entity));
+			const matrices: Array<TargetMatrix> = [];
+			for (let count = minTargets; count <= Math.min(maxCount, knownBlessings.length); count += 1) {
+				for (const combo of combinations(knownBlessings, count)) {
+					matrices.push(makeTargets({ blessings: combo }));
+				}
+			}
+			return matrices;
+		}
 	}
 }
 
@@ -460,17 +520,59 @@ function scoreChoiceBias(
 	return score;
 }
 
-function getGoalFieldIndex(
-	entity: CombatEntity,
-): GoalFieldIndex {
-	const signature = goalSignature(entity);
-	const cached = goalFieldIndexCache.get(entity);
-	if (cached && cached.signature === signature) {
-		return cached.index;
+function goalsSignature(
+	goals: Array<Goal>,
+): string {
+	return goals
+		.map((goal) =>
+			`${goal.id}:${goal.kind}:${goal.field.join('.')}:${String(goal.value)}:${goal.weight}`,
+		)
+		.join(',');
+}
+
+function goalPriority(
+	goal: Goal,
+): number {
+	const current = readPath(goal.host, goal.field);
+	const distance = valueDistance(current, goal.value);
+
+	if (goal.kind === 'prevent') {
+		return goal.weight / (distance + 1);
 	}
 
+	if (
+		typeof current === 'number' &&
+		typeof goal.value === 'number' &&
+		goal.value > current
+	) {
+		return goal.weight * (distance + 1);
+	}
+
+	if (goal.kind === 'maintain' && distance > 0) {
+		return goal.weight * (distance + 1);
+	}
+
+	return goal.weight / (distance + 1);
+}
+
+function selectEvaluationGoals(
+	entity: CombatEntity,
+): Array<Goal> {
+	const width = resolveGoalWidth(entity);
+	if (!width || entity.goals.length <= width) {
+		return entity.goals;
+	}
+
+	return [...entity.goals]
+		.sort((left, right) => goalPriority(right) - goalPriority(left))
+		.slice(0, width);
+}
+
+function buildGoalFieldIndex(
+	goals: Array<Goal>,
+): GoalFieldIndex {
 	const index: GoalFieldIndex = new WeakMap();
-	for (const goal of entity.goals) {
+	for (const goal of goals) {
 		const host = goal.host as object;
 		const hostMap = index.get(host) ?? new Map<string, Array<Goal>>();
 		const key = fieldPathKey(goal.field);
@@ -479,19 +581,32 @@ function getGoalFieldIndex(
 		hostMap.set(key, goalsAtField);
 		index.set(host, hostMap);
 	}
+	return index;
+}
 
-	goalFieldIndexCache.set(entity, {
-		signature,
-		index,
-	});
+function getGoalFieldIndex(
+	entity: CombatEntity,
+	goals: Array<Goal>,
+): GoalFieldIndex {
+	const signature = goalsSignature(goals);
+	const cached = goalFieldIndexCache.get(entity);
+	if (cached?.has(signature)) {
+		return cached.get(signature) as GoalFieldIndex;
+	}
+
+	const index = buildGoalFieldIndex(goals);
+	const signatures = cached ?? new Map<string, GoalFieldIndex>();
+	signatures.set(signature, index);
+	goalFieldIndexCache.set(entity, signatures);
 	return index;
 }
 
 function summarizeEntityScore(
 	entity: CombatEntity,
 	changes: Array<StateChange>,
+	goals: Array<Goal> = selectEvaluationGoals(entity),
 ): EntityScoreSummary {
-	const index = getGoalFieldIndex(entity);
+	const index = getGoalFieldIndex(entity, goals);
 	const scored = new Map<string, GoalContribution>();
 
 	for (const change of changes) {
@@ -531,6 +646,239 @@ function summarizeEntityScore(
 	};
 }
 
+function summarizeGoalTimeline(
+	entity: CombatEntity,
+	timeline: Array<Array<StateChange>>,
+	goals: Array<Goal> = selectEvaluationGoals(entity),
+): EntityScoreSummary {
+	const contributions = new Map<string, GoalContribution>();
+	let cumulative: Array<StateChange> = [];
+	let total = 0;
+	let weight = 1;
+	const rolloff = resolveGoalWeightRolloff(entity);
+
+	for (const step of timeline) {
+		cumulative = mergeStateChanges([
+			...cumulative,
+			...step,
+		]);
+
+		const summary = summarizeEntityScore(entity, cumulative, goals);
+		total += summary.total * weight;
+
+		for (const contribution of summary.contributions) {
+			const existing = contributions.get(contribution.goal.id);
+			if (existing) {
+				existing.score += contribution.score * weight;
+				continue;
+			}
+			contributions.set(contribution.goal.id, {
+				goal: contribution.goal,
+				score: contribution.score * weight,
+			});
+		}
+
+		weight *= rolloff;
+	}
+
+	return {
+		total,
+		contributions: [...contributions.values()].sort(
+			(left, right) => Math.abs(right.score) - Math.abs(left.score),
+		),
+	};
+}
+
+function moveHasOperation(
+	move: CombatMove,
+	names: Array<string>,
+): boolean {
+	return [...move.operations, ...move.loopOperations].some((operation) =>
+		names.includes(operation.name),
+	);
+}
+
+function moveAppliesElementToOwner(
+	move: CombatMove,
+	element: string,
+): boolean {
+	return move.element === element &&
+		moveHasOperation(move, ['applyAttunement']) &&
+		move.targetType.type === 'enemy';
+}
+
+function attunementInteractionPressure(
+	combat: CombatState,
+	awarenessTeam: CombatTeam,
+	target: CombatEntity,
+	attunement: string,
+): number {
+	let pressure = 0;
+	const awareEntities = combat.entities[awarenessTeam].filter(
+		(entity) => entity.isDead === false,
+	);
+
+	for (const entity of awareEntities) {
+		for (const move of visibleMovesForAwareness(combat, awarenessTeam, entity)) {
+			const relation = ElementRelationships[move.element]?.[attunement as keyof typeof ElementRelationships[typeof move.element]];
+			switch (relation) {
+				case 'blocks':
+					pressure += 2;
+					break;
+				case 'absorbs':
+					pressure += 1.5;
+					break;
+				case 'resists':
+					pressure += 1;
+					break;
+				case 'weak':
+					pressure -= 0.5;
+					break;
+			}
+		}
+	}
+
+	for (const move of visibleMovesForAwareness(combat, awarenessTeam, target)) {
+		if (moveAppliesElementToOwner(move, attunement)) {
+			pressure -= 1.5;
+		}
+	}
+
+	return pressure;
+}
+
+function stateInteractionHeuristic(
+	combat: CombatState,
+	actor: CombatEntity,
+	awarenessTeam: CombatTeam,
+	changes: Array<StateChange>,
+): number {
+	let score = 0;
+
+	for (const change of changes) {
+		if (!('entityType' in change.host)) {
+			continue;
+		}
+
+		if (
+			change.field[0] === 'attunedTo' &&
+			typeof change.field[1] === 'string'
+		) {
+			const attunement = change.field[1];
+			const pressure = attunementInteractionPressure(
+				combat,
+				awarenessTeam,
+				change.host,
+				attunement,
+			);
+			if (change.before === true && change.after === false) {
+				score += pressure;
+			}
+			if (change.before === false && change.after === true) {
+				score -= pressure * 0.5;
+			}
+		}
+
+		if (change.field[0] === 'statusTurns') {
+			if (change.host.id === actor.id && typeof change.after === 'number' && typeof change.before === 'number') {
+				score += (change.after - change.before) * -0.25;
+			}
+			if (change.host.id !== actor.id && typeof change.after === 'number' && typeof change.before === 'number') {
+				score += (change.after - change.before) * 0.2;
+			}
+		}
+	}
+
+	return score;
+}
+
+function heuristicProjectionScore(
+	combat: CombatState,
+	actor: CombatEntity,
+	awarenessTeam: CombatTeam,
+	projection: ProjectedChoice,
+	goals: Array<Goal>,
+): number {
+	return projection.bias +
+		(projection.choice.move.baseDamage * 0.25) +
+		summarizeEntityScore(actor, projection.immediateChanges, goals).total +
+		stateInteractionHeuristic(
+			combat,
+			actor,
+			awarenessTeam,
+			projection.immediateChanges,
+		);
+}
+
+function isStatefulUtilityChoice(
+	choice: TurnChoice,
+): boolean {
+	return choice.move.moveType === 'utility' ||
+		moveHasOperation(choice.move, [
+			'applyStatusTurns',
+			'extendStatusTurns',
+			'negateStatus',
+			'reduceStatusTurns',
+			'applyAttunement',
+			'negateAttunement',
+			'negateCooldown',
+			'negateExtraIterations',
+			'bindMoves',
+			'applyIgnoreStatusTurns',
+			'heal',
+			'applyShields',
+			'applyEnergy',
+		]);
+}
+
+function deepSearchCandidateLimit(
+	entity: CombatEntity,
+	totalChoices: number,
+): number {
+	const foresight = resolveForesight(entity);
+	return Math.min(
+		totalChoices,
+		Math.max(
+			4,
+			foresight + 2,
+			Math.ceil(Math.sqrt(totalChoices)) + 1,
+		),
+	);
+}
+
+function selectDeepSearchProjections(
+	combat: CombatState,
+	actor: CombatEntity,
+	awarenessTeam: CombatTeam,
+	projections: Array<ProjectedChoice>,
+	goals: Array<Goal>,
+): Set<ProjectedChoice> {
+	const limit = deepSearchCandidateLimit(actor, projections.length);
+	if (limit >= projections.length) {
+		return new Set(projections);
+	}
+
+	const ranked = [...projections].sort(
+		(left, right) =>
+			heuristicProjectionScore(combat, actor, awarenessTeam, right, goals) -
+			heuristicProjectionScore(combat, actor, awarenessTeam, left, goals),
+	);
+	const reservedUtility = Math.min(2, limit);
+	const selected = new Set<ProjectedChoice>();
+
+	for (const projection of ranked.filter(({ choice }) => isStatefulUtilityChoice(choice)).slice(0, reservedUtility)) {
+		selected.add(projection);
+	}
+	for (const projection of ranked) {
+		if (selected.size >= limit) {
+			break;
+		}
+		selected.add(projection);
+	}
+
+	return selected;
+}
+
 function moveChoices(
 	combat: CombatState,
 	actor: CombatEntity,
@@ -543,7 +891,7 @@ function moveChoices(
 			continue;
 		}
 
-		const targetOptions = targetMatricesForMove(combat, actor, move);
+		const targetOptions = targetMatricesForMove(combat, actor, awarenessTeam, move);
 		for (const targets of targetOptions) {
 			const choice: TurnChoice = { move, targets };
 			if (turnChoiceDisqualified(actor, choice)) {
@@ -802,12 +1150,20 @@ function predictBestBranch(
 
 	const catalog = getStateChoiceCatalog(combat, cache, awarenessTeam, signature);
 	const projections = catalog.actorChoices.get(actor.id) ?? [];
+	const goals = selectEvaluationGoals(actor);
 	if (projections.length === 0) {
-		const empty = { changes: [], utility: 0 };
+		const empty = { changes: [], utility: 0, timeline: [] };
 		branches.set(key, empty);
 		return empty;
 	}
 
+	const deepCandidates = selectDeepSearchProjections(
+		combat,
+		actor,
+		awarenessTeam,
+		projections,
+		goals,
+	);
 	let bestBranch: BranchPrediction | null = null;
 
 	for (const projection of projections) {
@@ -826,17 +1182,24 @@ function predictBestBranch(
 		);
 
 		let futureChanges: Array<StateChange> = [];
+		let futureTimeline: Array<Array<StateChange>> = [];
 		const next = nextActorFromQueue(combat, remainingQueue);
-		if (next.actor) {
-			futureChanges = predictBestBranch(
+		if (next.actor && deepCandidates.has(projection)) {
+			const futurePrediction = predictBestBranch(
 				combat,
 				awarenessTeam,
 				next.actor,
 				next.remaining,
 				cache,
-			).changes;
+			);
+			futureChanges = futurePrediction.changes;
+			futureTimeline = futurePrediction.timeline;
 		}
 
+		const timeline = [
+			projection.immediateChanges,
+			...futureTimeline,
+		];
 		const combined = mergeStateChanges([
 			...projection.immediateChanges,
 			...futureChanges,
@@ -845,18 +1208,19 @@ function predictBestBranch(
 		rollbackStateChanges(applied);
 
 		const utility =
-			summarizeEntityScore(actor, combined).total +
+			summarizeGoalTimeline(actor, timeline, goals).total +
 			projection.bias;
 
 		if (!bestBranch || utility > bestBranch.utility) {
 			bestBranch = {
 				changes: combined,
 				utility,
+				timeline,
 			};
 		}
 	}
 
-	const resolved = bestBranch ?? { changes: [], utility: 0 };
+	const resolved = bestBranch ?? { changes: [], utility: 0, timeline: [] };
 	branches.set(key, resolved);
 	return resolved;
 }
@@ -883,7 +1247,7 @@ function analyzeTurnChoicesForEntity(
 	const futureQueue = predictiveTurnQueue(
 		combat,
 		entity,
-		Math.max(0, entity.level - 1),
+		resolveForesight(entity),
 	);
 	const catalog = getStateChoiceCatalog(
 		combat,
@@ -892,6 +1256,14 @@ function analyzeTurnChoicesForEntity(
 		cache.currentSignature,
 	);
 	const projections = catalog.actorChoices.get(entity.id) ?? [];
+	const goals = selectEvaluationGoals(entity);
+	const deepCandidates = selectDeepSearchProjections(
+		combat,
+		entity,
+		awarenessTeam,
+		projections,
+		goals,
+	);
 
 	const ranked = projections.map((projection) => {
 		const parentSignature = cache.currentSignature;
@@ -901,22 +1273,29 @@ function analyzeTurnChoicesForEntity(
 		warmStateChoiceCatalogs(combat, cache, childSignature);
 
 		let futureChanges: Array<StateChange> = [];
+		let futureTimeline: Array<Array<StateChange>> = [];
 		const next = nextActorFromQueue(combat, futureQueue);
-		if (next.actor) {
-			futureChanges = predictBestBranch(
+		if (next.actor && deepCandidates.has(projection)) {
+			const futurePrediction = predictBestBranch(
 				combat,
 				awarenessTeam,
 				next.actor,
 				next.remaining,
 				cache,
-			).changes;
+			);
+			futureChanges = futurePrediction.changes;
+			futureTimeline = futurePrediction.timeline;
 		}
+		const timeline = [
+			projection.immediateChanges,
+			...futureTimeline,
+		];
 		const combined = mergeStateChanges([
 			...projection.immediateChanges,
 			...futureChanges,
 		]);
 		rollbackStateChanges(applied);
-		const scoreSummary = summarizeEntityScore(entity, combined);
+		const scoreSummary = summarizeGoalTimeline(entity, timeline, goals);
 		const score =
 			scoreSummary.total +
 			projection.bias;
@@ -925,7 +1304,9 @@ function analyzeTurnChoicesForEntity(
 			score,
 			contributions: scoreSummary.contributions,
 			predictedChanges: combined,
-			futureActorIds: [...futureQueue],
+			futureActorIds: deepCandidates.has(projection)
+				? [...futureQueue]
+				: [],
 		};
 	});
 	ranked.sort((left, right) => right.score - left.score);

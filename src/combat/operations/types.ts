@@ -1,7 +1,7 @@
 // src/combat/operations/types.ts
 
 import type { DamageElement, EntityType, Status, ListenerType } from '../../shared';
-import type { GoalKind } from '../ai';
+import type { GoalKind } from '../ai/types.ts';
 import type { CombatBlessing, CombatEntity, CombatMove } from '../models';
 import type { CombatState } from '../types.ts';
 import type { EntityTemplate } from '../../data/templates';

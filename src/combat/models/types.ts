@@ -2,7 +2,7 @@
 
 import type { DamageElement, EntityType, MoveType, Status, TargetType } from '../../shared';
 import type { Listener, Operation, TargetMatrix } from '../operations';
-import type { AiTuning, GoalHierarchy } from '../ai';
+import type { AiTuning, GoalHierarchy } from '../ai/types.ts';
 
 export interface CombatTargetingRules {
 	type: TargetType;

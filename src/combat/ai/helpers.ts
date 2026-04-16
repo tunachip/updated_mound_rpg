@@ -1,9 +1,8 @@
 // src/combat/ai/helpers.ts
 
-import type { CombatEntity, CombatMove, CombatBlessing } from "../models";
+import type { CombatEntity } from "../models";
 import type { CombatState } from "../types";
 import type { CombatTeam } from "../../shared";
-import type { GoalType } from "./types";
 
 export function teamOfEntity(
 	combat: CombatState,
@@ -52,10 +51,10 @@ export function resolveFieldValue(
 	return out;
 }
 
-function goalSatisfied (
+export function goalSatisfied (
 	current: any,
 	desired: any,
-	goalType: GoalType,
+	goalType: 'maintain' | 'approach' | 'prevent',
 ): boolean {
 	switch (goalType) {
 		case 'maintain':
@@ -64,5 +63,4 @@ function goalSatisfied (
 		case 'prevent':
 			return (current !== desired);
 	}
-
 }

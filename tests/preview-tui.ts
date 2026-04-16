@@ -1,8 +1,5 @@
 // tests/preview-tui.ts
 
-import * as readline from 'node:readline';
-import type { Key } from 'node:readline';
-
 import { defaultAiTuning } from '../src/combat/ai/goals.ts';
 import { buildCombatMove } from '../src/combat/models/constructor.ts';
 import { previewOperations, type StateChange } from '../src/combat/operations/index.ts';
@@ -94,18 +91,84 @@ function changeHostLabel(change: StateChange): string {
 	return 'combat';
 }
 
-function formatValue(value: unknown): string {
+function formatValue(
+	value: unknown,
+	seen: WeakSet<object> = new WeakSet(),
+): string {
+	if (value == null) {
+		return String(value);
+	}
 	if (typeof value === 'boolean') {
 		return value ? 'true' : 'false';
 	}
 	if (typeof value === 'string' || typeof value === 'number') {
 		return String(value);
 	}
-	return JSON.stringify(value);
+	if (typeof value !== 'object') {
+		return String(value);
+	}
+	if (Array.isArray(value)) {
+		const rendered = value
+			.slice(0, 4)
+			.map((entry) => formatValue(entry, seen));
+		const suffix = value.length > 4 ? ', ...' : '';
+		return `[${rendered.join(', ')}${suffix}]`;
+	}
+	if (seen.has(value)) {
+		return '[Circular]';
+	}
+	seen.add(value);
+
+	if (
+		'id' in value &&
+		typeof value.id === 'string' &&
+		'name' in value &&
+		typeof value.name === 'string'
+	) {
+		return `${value.name} (${value.id})`;
+	}
+	if ('id' in value && typeof value.id === 'string') {
+		return value.id;
+	}
+	if ('field' in value && Array.isArray(value.field)) {
+		return `{ field: ${value.field.join('.')} }`;
+	}
+
+	const record = value as Record<string, unknown>;
+	const entries = Object.entries(record)
+		.slice(0, 4)
+		.map(([key, entry]) => `${key}: ${formatValue(entry, seen)}`);
+	const suffix = Object.keys(record).length > 4 ? ', ...' : '';
+	return `{ ${entries.join(', ')}${suffix} }`;
+}
+
+function formatDiffValue(
+	value: unknown,
+	color: string | null,
+): string {
+	return color ? `${color}${formatValue(value)}${ANSI.reset}` : formatValue(value);
 }
 
 function formatChange(change: StateChange): string {
-	return `${changeHostLabel(change)}.${change.field.join('.')}: ${formatValue(change.before)} -> ${formatValue(change.after)}`;
+	const changed = !Object.is(change.before, change.after);
+	const before = formatDiffValue(change.before, changed ? ANSI.red : null);
+	const after = formatDiffValue(change.after, changed ? ANSI.green : null);
+	return `${changeHostLabel(change)}.${change.field.join('.')}: ${before} -> ${after}`;
+}
+
+function tokenizeInput(
+	input: string,
+): Array<string> {
+	const tokens: Array<string> = [];
+	for (let index = 0; index < input.length; index += 1) {
+		if (input[index] === '\x1b' && input[index + 1] === '[' && input[index + 2]) {
+			tokens.push(input.slice(index, index + 3));
+			index += 2;
+			continue;
+		}
+		tokens.push(input[index]);
+	}
+	return tokens;
 }
 
 function readAtPath(source: unknown, path: Array<string>): unknown {
@@ -484,7 +547,8 @@ function runInteractiveMode(): void {
 		);
 	};
 
-	readline.emitKeypressEvents(process.stdin);
+	process.stdin.setEncoding('utf8');
+	process.stdin.resume();
 	if (process.stdin.isTTY) {
 		process.stdin.setRawMode(true);
 	}
@@ -493,32 +557,39 @@ function runInteractiveMode(): void {
 		if (process.stdin.isTTY) {
 			process.stdin.setRawMode(false);
 		}
-		process.stdin.removeAllListeners('keypress');
+		process.stdin.removeListener('data', onData);
 	};
 
-	process.stdin.on('keypress', (input: string, key: Key) => {
-		if (key.name === 'q' || (key.ctrl && key.name === 'c')) {
-			cleanup();
-			process.stdout.write('\n');
-			process.exit(0);
+	const onData = (input: string): void => {
+		for (const token of tokenizeInput(input)) {
+			if (token === 'q' || token === '\u0003') {
+				cleanup();
+				process.stdout.write('\n');
+				process.exit(0);
+			}
+			if (token === '\x1b[B' || token === 'j') {
+				selectedMoveIndex = (selectedMoveIndex + 1) % fixture.moves.length;
+				redraw();
+				continue;
+			}
+			if (token === '\x1b[A' || token === 'k') {
+				selectedMoveIndex = (selectedMoveIndex - 1 + fixture.moves.length) % fixture.moves.length;
+				redraw();
+				continue;
+			}
+			if (token === '\x1b[C' || token === 'l') {
+				selectedTargetIndex = (selectedTargetIndex + 1) % fixture.encounters.length;
+				redraw();
+				continue;
+			}
+			if (token === '\x1b[D' || token === 'h') {
+				selectedTargetIndex = (selectedTargetIndex - 1 + fixture.encounters.length) % fixture.encounters.length;
+				redraw();
+			}
 		}
-		if (key.name === 'down' || input === 'j') {
-			selectedMoveIndex = (selectedMoveIndex + 1) % fixture.moves.length;
-			redraw();
-		}
-		if (key.name === 'up' || input === 'k') {
-			selectedMoveIndex = (selectedMoveIndex - 1 + fixture.moves.length) % fixture.moves.length;
-			redraw();
-		}
-		if (key.name === 'right' || input === 'l') {
-			selectedTargetIndex = (selectedTargetIndex + 1) % fixture.encounters.length;
-			redraw();
-		}
-		if (key.name === 'left' || input === 'h') {
-			selectedTargetIndex = (selectedTargetIndex - 1 + fixture.encounters.length) % fixture.encounters.length;
-			redraw();
-		}
-	});
+	};
+
+	process.stdin.on('data', onData);
 
 	redraw();
 }

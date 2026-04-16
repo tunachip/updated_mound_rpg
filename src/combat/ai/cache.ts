@@ -1,9 +1,9 @@
 // src/combat/ai/cache.ts
 
-import type { TurnChoice } from '../models';
+import type { TurnChoice } from '../models/index.ts';
 import type { StateChange } from '../operations';
-import type { CombatTeam } from '../../shared';
-import { CombatTeams } from '../../shared';
+import type { CombatTeam } from '../../shared/index.ts';
+import { CombatTeams } from '../../shared/index.ts';
 
 export interface ProjectedChoice {
 	choice: TurnChoice;

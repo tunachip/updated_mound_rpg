@@ -119,3 +119,23 @@ export function negateStatus (
 	}
 	return intents;
 }
+
+export function applyIgnoreStatusTurns(
+	ctx: OperationContext,
+): Array<StateChange> {
+	const intents: Array<StateChange> = [];
+	requireCtx('applyIgnoreStatusTurns', ctx, ['status', 'amount']);
+	const { status, amount } = ctx;
+
+	for (const target of ctx.targets.entities) {
+		const before = target.ignoresStatusTurns[status];
+		intents.push({
+			host: target,
+			field: ['ignoresStatusTurns', status],
+			before,
+			after: before + amount,
+		});
+	}
+
+	return intents;
+}

@@ -1,6 +1,6 @@
 // src/combat/operations/goal.ts
 
-import type { Goal } from '../ai';
+import type { Goal } from '../ai/types.ts';
 import type { StateChange } from './diff.ts';
 import type { OperationContext } from './types.ts';
 import { requireCtx } from './helpers.ts';

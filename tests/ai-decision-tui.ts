@@ -1,8 +1,5 @@
 // tests/ai-decision-tui.ts
 
-import * as readline from 'node:readline';
-import type { Key } from 'node:readline';
-
 import {
 	analyzeTurnChoices,
 	hydrateAiGoalListeners,
@@ -389,6 +386,98 @@ function colorize(
 	return color ? `${color}${value}${ANSI.reset}` : value;
 }
 
+function formatValue(
+	value: unknown,
+	seen: WeakSet<object> = new WeakSet(),
+): string {
+	if (value == null) {
+		return String(value);
+	}
+	if (typeof value === 'boolean') {
+		return value ? 'true' : 'false';
+	}
+	if (typeof value === 'string' || typeof value === 'number') {
+		return String(value);
+	}
+	if (typeof value !== 'object') {
+		return String(value);
+	}
+	if (Array.isArray(value)) {
+		const rendered = value
+			.slice(0, 4)
+			.map((entry) => formatValue(entry, seen));
+		const suffix = value.length > 4 ? ', ...' : '';
+		return `[${rendered.join(', ')}${suffix}]`;
+	}
+	if (seen.has(value)) {
+		return '[Circular]';
+	}
+	seen.add(value);
+
+	if (
+		'id' in value &&
+		typeof value.id === 'string' &&
+		'name' in value &&
+		typeof value.name === 'string'
+	) {
+		return `${value.name} (${value.id})`;
+	}
+	if ('id' in value && typeof value.id === 'string') {
+		return value.id;
+	}
+	if ('field' in value && Array.isArray(value.field)) {
+		return `{ field: ${value.field.join('.')} }`;
+	}
+
+	const record = value as Record<string, unknown>;
+	const entries = Object.entries(record)
+		.slice(0, 4)
+		.map(([key, entry]) => `${key}: ${formatValue(entry, seen)}`);
+	const suffix = Object.keys(record).length > 4 ? ', ...' : '';
+	return `{ ${entries.join(', ')}${suffix} }`;
+}
+
+function formatDiffValue(
+	value: unknown,
+	color: string | null,
+): string {
+	return colorize(formatValue(value), color);
+}
+
+function formatPredictedChange(
+	change: ChoiceAnalysis['predictedChanges'][number],
+): string {
+	const hostName = 'name' in change.host ? change.host.name : 'combat';
+	const changed = !Object.is(change.before, change.after);
+	const before = formatDiffValue(change.before, changed ? ANSI.red : null);
+	const after = formatDiffValue(change.after, changed ? ANSI.green : null);
+	return `${hostName}.${change.field.join('.')} ${before} -> ${after}`;
+}
+
+function isAdvanceInput(
+	input: string,
+): boolean {
+	return input === '\r' ||
+		input === '\n' ||
+		input === ' ' ||
+		input === 'n';
+}
+
+function tokenizeInput(
+	input: string,
+): Array<string> {
+	const tokens: Array<string> = [];
+	for (let index = 0; index < input.length; index += 1) {
+		if (input[index] === '\x1b' && input[index + 1] === '[' && input[index + 2]) {
+			tokens.push(input.slice(index, index + 3));
+			index += 2;
+			continue;
+		}
+		tokens.push(input[index]);
+	}
+	return tokens;
+}
+
 function entityRow(
 	entity: CombatEntity,
 	currentActorId: string | null,
@@ -437,17 +526,23 @@ function formatChoiceLine(
 
 	const predicted = analysis.predictedChanges
 		.slice(0, 4)
-		.map((change) => {
-			const hostName = 'name' in change.host ? change.host.name : 'combat';
-			return `${hostName}.${change.field.join('.')} ${String(change.before)} -> ${String(change.after)}`;
-		})
-		.join(' | ') || 'no projected changes';
+		.map(formatPredictedChange);
 
-	return [
+	const lines = [
 		header,
 		`   why: ${reasons}`,
-		`   diff: ${predicted}`,
 	];
+	if (predicted.length === 0) {
+		lines.push('   diff: no projected changes');
+		return lines;
+	}
+
+	lines.push('   diff:');
+	for (const change of predicted) {
+		lines.push(`     - ${change}`);
+	}
+
+	return lines;
 }
 
 function renderScreen(
@@ -526,29 +621,40 @@ function runInteractiveTui(): void {
 		process.stdout.write(`${renderScreen(simulation)}\n`);
 	};
 
-	readline.emitKeypressEvents(process.stdin);
+	process.stdin.setEncoding('utf8');
+	process.stdin.resume();
 	if (process.stdin.isTTY) {
 		process.stdin.setRawMode(true);
 	}
 
-	const onKeypress = (_input: string, key: Key): void => {
-		if (key.ctrl && key.name === 'c') {
-			process.exit(0);
+	const cleanup = (): void => {
+		if (process.stdin.isTTY) {
+			process.stdin.setRawMode(false);
 		}
+		process.stdin.removeListener('data', onData);
+	};
 
-		switch (key.name) {
-			case 'return':
-			case 'space':
-			case 'n':
+	const onData = (input: string): void => {
+		for (const token of tokenizeInput(input)) {
+			if (token === '\u0003') {
+				cleanup();
+				process.exit(0);
+			}
+
+			if (isAdvanceInput(token)) {
 				simulation = advanceSimulation(simulation);
 				redraw();
-				return;
-			case 'q':
+				continue;
+			}
+
+			if (token === 'q') {
+				cleanup();
 				process.exit(0);
+			}
 		}
 	};
 
-	process.stdin.on('keypress', onKeypress);
+	process.stdin.on('data', onData);
 	redraw();
 }
 
