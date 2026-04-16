@@ -204,6 +204,7 @@ export function buildCombatMove(
 		ignoresStatuses: moveTemplate.ignoresStatuses,
 		operations: moveTemplate.operations,
 		loopOperations: moveTemplate.loopOperations,
+		isBanked: false,
 	};
 	for (const fragment of fragments) {
 		move = applyFragmentToMove(move, fragment);

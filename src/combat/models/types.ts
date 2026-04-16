@@ -67,6 +67,7 @@ export interface CombatMove {
 	ignoresStatuses: Array<Status>;
 	operations: Array<Operation>;
 	loopOperations: Array<Operation>;
+	isBanked: boolean; // banked moves are unable to be cast, but have 'from banked' effects
 }
 
 export interface CombatBlessing {

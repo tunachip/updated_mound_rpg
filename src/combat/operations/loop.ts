@@ -2,7 +2,8 @@
 
 import type { StateChange } from './diff.ts';
 import type { Operation, OperationContext } from '.';
-import { previewOperations } from './resolver.ts';
+import { mergeStateChanges } from './diff.ts';
+import { executeOperation, previewOperations } from './resolver.ts';
 
 export function loop(
 	ctx: OperationContext
@@ -26,6 +27,25 @@ export function loop(
 		expandedOperations.push(...operations);
 	}
 
-	const previewSequence = previewOperations(expandedOperations, ctx);
-	return previewSequence[previewSequence.length - 1] ?? [];
+	if (ctx.predictionMode === 'preview') {
+		const previewSequence = previewOperations(expandedOperations, ctx);
+		return previewSequence[previewSequence.length - 1] ?? [];
+	}
+
+	const changes: Array<StateChange> = [];
+	for (const operation of expandedOperations) {
+		const result = executeOperation(operation, {
+			...ctx,
+			changes: mergeStateChanges([
+				...(ctx.changes ?? []),
+				...changes,
+			]),
+		});
+		changes.push(...result.changes);
+		if (result.breaks) {
+			break;
+		}
+	}
+
+	return mergeStateChanges(changes);
 }

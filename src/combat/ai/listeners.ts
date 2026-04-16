@@ -138,6 +138,7 @@ function scanMoveCapabilities(
 ): void {
 	const defaultTargetsOwner =
 		move.targetType.type === 'self' ||
+		move.targetType.type === 'friend' ||
 		move.targetType.type === 'entity';
 
 	const operations = [
@@ -246,6 +247,7 @@ function buildAiGoalListeners(
 			move: null,
 			blessing: null,
 			listener: statusReliefListener(entity, status, strength),
+			chargeTurns: -1,
 		});
 	}
 

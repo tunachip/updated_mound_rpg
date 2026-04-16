@@ -106,6 +106,7 @@ export const MoveTypes = [
 export const TargetTypes = [
 	'self',
 	'ally',
+	'friend',
 	'enemy',
 	'entity',
 	'move',

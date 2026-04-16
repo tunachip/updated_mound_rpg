@@ -15,6 +15,7 @@ import {
 	tickAttunements,
 	tickCooldowns,
 	tickIgnoresStatuses,
+	tickListenerCharges,
 	tickStatuses,
 } from './turn/index.ts';
 
@@ -112,7 +113,7 @@ function runEntityTurn(
 		return;
 	}
 
-	const audits = audit(entity);
+	const audits = audit(entity, combat);
 	const statuses = splitTickStatuses(audits.statuses);
 
 	if (statuses.damage.length > 0) {
@@ -138,6 +139,9 @@ function runEntityTurn(
 	}
 	if (audits.cooldowns.length > 0) {
 		tickCooldowns(combat, entity, audits.cooldowns);
+	}
+	if (audits.listeners.length > 0) {
+		tickListenerCharges(combat, entity, audits.listeners);
 	}
 	cleanupEntity(entity);
 }

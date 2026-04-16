@@ -3,16 +3,20 @@
 import type { Status, DamageElement } from '../../shared';
 import { Statuses, DamageElements } from '../../shared/index.ts';
 import type { CombatEntity, CombatMove, CombatBlessing } from '../models';
+import type { CombatState } from '../types.ts';
+import type { RegisteredRuntimeListener } from '../operations/index.ts';
 
 interface TurnAudits {
 	attunements: Array<DamageElement>;
 	statuses: Array<Status>;
 	ignoresStatuses: Array<Status>;
 	cooldowns: Array<CombatMove|CombatBlessing>;
+	listeners: Array<RegisteredRuntimeListener>;
 }
 
 export function audit (
-	entity: CombatEntity
+	entity: CombatEntity,
+	combat?: CombatState,
 ): TurnAudits {
 	return {
 		attunements: DamageElements.filter(
@@ -30,5 +34,12 @@ export function audit (
 		].filter(
 			effect => effect.cooldownTurns > 0
 		),
+		listeners: combat == null
+			? []
+			: combat.listeners.filter(
+				(listener) =>
+					listener.owner.id === entity.id &&
+					listener.chargeTurns > 0,
+			),
 	};
 }

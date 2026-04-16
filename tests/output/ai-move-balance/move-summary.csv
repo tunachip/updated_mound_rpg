@@ -1,0 +1,22 @@
+move_id,move_name,bucket,samples,wins,losses,draws,win_rate,loss_rate,draw_rate
+move_apply_anger,Apply Anger,utility11,3360,1211,2133,16,0.3604,0.6348,0.0048
+move_apply_decay,Apply Decay,utility11,385,198,186,1,0.5143,0.4831,0.0026
+move_apply_focus,Apply Focus,utility11,175,58,117,0,0.3314,0.6686,0.0000
+move_apply_regen,Apply Regen,utility11,3360,1245,2099,16,0.3705,0.6247,0.0048
+move_apply_slippery,Apply Slippery,utility11,2635,1683,946,6,0.6387,0.3590,0.0023
+move_apply_strong,Apply Strong,utility11,385,186,198,1,0.4831,0.5143,0.0026
+move_apply_tough,Apply Tough,utility11,3775,2430,1331,14,0.6437,0.3526,0.0037
+move_bank_move,Bank Move,utility21,3775,2432,1329,14,0.6442,0.3521,0.0037
+move_bind_move,Bind Move,utility21,3135,1095,2026,14,0.3493,0.6463,0.0045
+move_blow_hard,Blow Hard,attack,3665,1221,2429,15,0.3332,0.6628,0.0041
+move_fire_away,Fire Away,attack,3935,2569,1351,15,0.6529,0.3433,0.0038
+move_general_strike,General Strike,attack,3665,1492,2171,2,0.4071,0.5924,0.0005
+move_ignore_sleep,Ignore Sleep,utility21,160,40,120,0,0.2500,0.7500,0.0000
+move_negate_anger,Negate Status,utility21,3775,2424,1337,14,0.6421,0.3542,0.0037
+move_negate_extra_iterations,Negate Extra Iterations,utility21,160,40,120,0,0.2500,0.7500,0.0000
+move_negate_regen,Negate Regen,utility21,160,33,127,0,0.2062,0.7937,0.0000
+move_negate_thunder_attunement,Negate Attunement,utility21,3135,1098,2023,14,0.3502,0.6453,0.0045
+move_roll_tide,Roll Tide,attack,5705,2576,3106,23,0.4515,0.5444,0.0040
+move_root_out,Root Out,attack,3935,2469,1441,25,0.6274,0.3662,0.0064
+move_stone_toss,Stone Toss,attack,2815,1958,844,13,0.6956,0.2998,0.0046
+move_tear_into,Tear Into,attack,3655,1302,2340,13,0.3562,0.6402,0.0036

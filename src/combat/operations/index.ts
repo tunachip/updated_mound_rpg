@@ -21,6 +21,7 @@ export * from './max-energy.ts';
 export * from './max-hp.ts';
 export * from './max-status.ts';
 export * from './move-element.ts';
+export * from './move-state.ts';
 export * from './pending-change.ts';
 export * from './register-listener.ts';
 export * from './reveal.ts';

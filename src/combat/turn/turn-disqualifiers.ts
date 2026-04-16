@@ -11,6 +11,9 @@ function isInvalid(
 	if (move.isBound) {
 		return true;
 	}
+	if (move.isBanked) {
+		return true;
+	}
 
 	if ((status === 'anger' && move.moveType === 'attack') ||
 		(status === 'stun' && move.moveType === 'utility')) {
@@ -19,7 +22,7 @@ function isInvalid(
 		return (
 			entity.hasStatus[status]
 			&& !(entity.ignoresStatusTurns[status] > 0)
-			&& !(move.ignoresStatuses[status])
+			&& !move.ignoresStatuses.includes(status)
 		);
 	}
 }

@@ -108,6 +108,7 @@ function executeListenerOperations(
 		combat: listenerCtx.combat,
 		caster: listenerCtx.owner,
 		move: listenerCtx.move,
+		predictionMode: 'preview',
 		blessing: listenerCtx.blessing,
 		listenerContext: listenerCtx,
 		change: listenerCtx.change,
@@ -222,6 +223,7 @@ export function previewOperations(
 		for (const operation of operations) {
 			const result = executeOperation(operation, {
 				...baseCtx,
+				predictionMode: 'preview',
 				changes: mergeStateChanges([
 					...inheritedChanges,
 					...changes,
@@ -268,6 +270,7 @@ export function hydrateRuntimeListeners(
 					move: null,
 					blessing,
 					listener,
+					chargeTurns: listener.chargeTurns,
 				});
 			}
 		}
@@ -276,6 +279,7 @@ export function hydrateRuntimeListeners(
 	const dynamicListeners = combat.listeners.filter(
 		(registered) =>
 			activeOwnerIds.has(registered.owner.id) &&
+			registered.chargeTurns !== 0 &&
 			(registered.move !== null || registered.blessing === null),
 	);
 
@@ -407,5 +411,11 @@ export function baseOperationContext(
 	move: CombatMove | null,
 	targets = emptyTargets(),
 ): OperationContext {
-	return {combat, caster, move, targets};
+	return {
+		combat,
+		caster,
+		move,
+		targets,
+		predictionMode: 'execute',
+	};
 }

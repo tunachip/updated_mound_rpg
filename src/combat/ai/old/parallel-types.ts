@@ -31,6 +31,7 @@ export interface SerializedMove {
 	baseIterations: number;
 	cooldownTurns: number;
 	isBound: boolean;
+	isBanked: boolean;
 	canBeChainedInto: boolean;
 	ignoresStatuses: Array<Status>;
 }

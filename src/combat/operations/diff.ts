@@ -140,8 +140,13 @@ export function applyStateChanges(
 	changes: Array<StateChange>
 ): Array<StateChange> {
 	const merged = mergeStateChanges(changes);
+	const applied: Array<StateChange> = [];
 	for (const change of merged) {
+		if (change.apply === false) {
+			continue;
+		}
 		applyStateChange(change);
+		applied.push(change);
 	}
-	return merged;
+	return applied;
 }

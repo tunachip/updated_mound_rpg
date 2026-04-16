@@ -160,6 +160,7 @@ function targetAllowsSupport(
 ): boolean {
 	return targetType === 'self' ||
 		targetType === 'ally' ||
+		targetType === 'friend' ||
 		targetType === 'entity';
 }
 

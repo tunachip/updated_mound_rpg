@@ -183,6 +183,14 @@ function visibleMovesForAwareness(
 	return subject.moves.filter((move) => move.isHidden === false);
 }
 
+function targetableMovesForAwareness(
+	combat: CombatState,
+	_subjectTeam: CombatTeam,
+	subject: CombatEntity,
+): Array<CombatMove> {
+	return subject.moves.filter((move) => move.isHidden === false);
+}
+
 function visibleBlessingsForAwareness(
 	combat: CombatState,
 	awarenessTeam: CombatTeam,
@@ -283,6 +291,7 @@ function focusChoice(
 			baseIterations: 1,
 			cooldownTurns: 0,
 			isBound: false,
+			isBanked: false,
 			canBeChainedInto: false,
 			ignoresStatuses: ['sleep', 'anger', 'stun'],
 			operations: [
@@ -337,6 +346,7 @@ function movementChoices(
 				baseIterations: 1,
 				cooldownTurns: 0,
 				isBound: false,
+				isBanked: false,
 				canBeChainedInto: false,
 				ignoresStatuses: [],
 				operations: [
@@ -401,6 +411,16 @@ function targetMatricesForMove(
 			}
 			return matrices;
 		}
+		case 'friend': {
+			const friends = alliesOf(combat, caster);
+			const matrices: Array<TargetMatrix> = [];
+			for (let count = minTargets; count <= Math.min(maxCount, friends.length); count += 1) {
+				for (const combo of combinations(friends, count)) {
+					matrices.push(makeTargets({ entities: combo }));
+				}
+			}
+			return matrices;
+		}
 		case 'enemy': {
 			const enemies = enemiesOf(combat, caster);
 			const matrices: Array<TargetMatrix> = [];
@@ -429,7 +449,7 @@ function targetMatricesForMove(
 			const knownMoves = [
 				...combat.entities.party,
 				...combat.entities.encounters,
-			].flatMap((entity) => visibleMovesForAwareness(combat, awarenessTeam, entity));
+			].flatMap((entity) => targetableMovesForAwareness(combat, awarenessTeam, entity));
 			const matrices: Array<TargetMatrix> = [];
 			for (let count = minTargets; count <= Math.min(maxCount, knownMoves.length); count += 1) {
 				for (const combo of combinations(knownMoves, count)) {
@@ -954,7 +974,7 @@ function entityStateSignature(
 	].join(':'),
 	).join(',');
 	const moves = entity.moves.map((move) =>
-		`${move.id}:${Number(move.isHidden)}:${move.cooldownTurns}:${Number(move.isBound)}`,
+		`${move.id}:${Number(move.isHidden)}:${move.cooldownTurns}:${Number(move.isBound)}:${Number(move.isBanked)}`,
 	).join(',');
 	const blessings = entity.blessings.map((blessing) =>
 		`${blessing.id}:${Number(blessing.isHidden)}:${blessing.cooldownTurns}:${Number(blessing.isExhausted)}:${Number(blessing.isBound)}`,

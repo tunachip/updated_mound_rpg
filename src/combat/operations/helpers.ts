@@ -71,6 +71,62 @@ export function ownerTargets(
 	};
 }
 
+function teamForEntity(
+	ctx: OperationContext,
+	entity: CombatEntity,
+): 'party' | 'encounters' | null {
+	if (ctx.combat.entities.party.some((member) => member.id === entity.id)) {
+		return 'party';
+	}
+	if (ctx.combat.entities.encounters.some((member) => member.id === entity.id)) {
+		return 'encounters';
+	}
+	return null;
+}
+
+export function friendTargets(
+): TargetResolver {
+	return (ctx) => {
+		const team = teamForEntity(ctx, ctx.caster);
+		if (!team) {
+			return emptyTargets();
+		}
+		return makeTargets({
+			entities: ctx.combat.entities[team].filter((entity) => !entity.isDead),
+		});
+	};
+}
+
+export function selfAndAdjacentTargets(
+): TargetResolver {
+	return (ctx) => {
+		const team = teamForEntity(ctx, ctx.caster);
+		if (!team) {
+			return emptyTargets();
+		}
+
+		const allies = ctx.combat.entities[team].filter((entity) => !entity.isDead);
+		const index = allies.findIndex((entity) => entity.id === ctx.caster.id);
+		if (index < 0) {
+			return makeTargets({ entities: [ctx.caster] });
+		}
+
+		const entities = [
+			allies[index - 1],
+			allies[index],
+			allies[index + 1],
+		].filter((entity): entity is CombatEntity => entity != null);
+		return makeTargets({ entities });
+	};
+}
+
+export function selfMoveTargets(
+): TargetResolver {
+	return (ctx) => ctx.move
+		? makeTargets({ moves: [ctx.move] })
+		: emptyTargets();
+}
+
 export function selfBlessingTargets(
 ): TargetResolver {
 	return (ctx) => ctx.blessing
@@ -146,6 +202,7 @@ export function listener(options: {
 	trigger: Listener['trigger'];
 	conditions?: Array<ListenerCondition>;
 	operations: Array<Operation>;
+	chargeTurns?: number;
 }): Listener {
 	return {
 		id: options.id ?? `${options.phase}:${options.trigger}`,
@@ -153,6 +210,7 @@ export function listener(options: {
 		trigger: options.trigger,
 		conditions: options.conditions ?? [],
 		operations: options.operations,
+		chargeTurns: options.chargeTurns ?? -1,
 	};
 }
 

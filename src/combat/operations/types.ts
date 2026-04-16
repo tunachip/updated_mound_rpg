@@ -31,6 +31,7 @@ export interface OperationContext {
 	combat: CombatState;
 	caster: CombatEntity;
 	move: CombatMove | null;
+	predictionMode?: 'execute' | 'preview';
 	blessing?: CombatBlessing | null;
 	listenerContext?: ListenerContext;
 	change?: StateChange;
@@ -95,6 +96,7 @@ export interface Listener {
 	trigger: StateChangeSignal;
 	conditions: Array<ListenerCondition>;
 	operations: Array<Operation>;
+	chargeTurns: number;
 }
 
 export interface RegisteredRuntimeListener {
@@ -102,6 +104,7 @@ export interface RegisteredRuntimeListener {
 	move: CombatMove | null;
 	blessing: CombatBlessing | null;
 	listener: Listener;
+	chargeTurns: number;
 }
 
 export interface OperationResult {

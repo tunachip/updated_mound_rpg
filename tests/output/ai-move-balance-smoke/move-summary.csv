@@ -1,0 +1,16 @@
+move_id,move_name,bucket,samples,wins,losses,draws,win_rate,loss_rate,draw_rate
+move_apply_anger,Apply Anger,utility11,1,0,0,1,0.0000,0.0000,1.0000
+move_apply_regen,Apply Regen,utility11,1,0,0,1,0.0000,0.0000,1.0000
+move_apply_slippery,Apply Slippery,utility11,1,0,0,1,0.0000,0.0000,1.0000
+move_apply_tough,Apply Tough,utility11,1,0,0,1,0.0000,0.0000,1.0000
+move_bank_move,Bank Move,utility21,1,0,0,1,0.0000,0.0000,1.0000
+move_bind_move,Bind Move,utility21,1,0,0,1,0.0000,0.0000,1.0000
+move_blow_hard,Blow Hard,attack,1,0,0,1,0.0000,0.0000,1.0000
+move_fire_away,Fire Away,attack,1,0,0,1,0.0000,0.0000,1.0000
+move_general_strike,General Strike,attack,1,0,0,1,0.0000,0.0000,1.0000
+move_negate_anger,Negate Status,utility21,1,0,0,1,0.0000,0.0000,1.0000
+move_negate_thunder_attunement,Negate Attunement,utility21,1,0,0,1,0.0000,0.0000,1.0000
+move_roll_tide,Roll Tide,attack,2,0,0,2,0.0000,0.0000,1.0000
+move_root_out,Root Out,attack,1,0,0,1,0.0000,0.0000,1.0000
+move_stone_toss,Stone Toss,attack,1,0,0,1,0.0000,0.0000,1.0000
+move_tear_into,Tear Into,attack,1,0,0,1,0.0000,0.0000,1.0000

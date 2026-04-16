@@ -9,19 +9,25 @@ export function registerListener(
 ): Array<StateChange> {
 	requireCtx('registerListener', ctx, ['listeners']);
 
-	const host = ctx.move ?? ctx.blessing ?? ctx.caster;
-	return ctx.listeners.map((listener) => ({
-		host: host,
-		field: ['listeners', listener.id],
-		before: false,
-		after: true,
-		signal: `listener.registered.${listener.id}`,
-		apply: false,
-		registeredListener: {
-			owner: ctx.caster,
-			move: ctx.move ?? null,
-			blessing: ctx.blessing ?? null,
-			listener: listener,
-		},
-	}));
+	const owners = ctx.targets.entities.length > 0
+		? ctx.targets.entities
+		: [ctx.caster];
+
+	return owners.flatMap((owner) =>
+		ctx.listeners.map((listener) => ({
+			host: ctx.move ?? ctx.blessing ?? owner,
+			field: ['listeners', listener.id, owner.id],
+			before: false,
+			after: true,
+			signal: `listener.registered.${listener.id}.${owner.id}`,
+			apply: false,
+			registeredListener: {
+				owner,
+				move: ctx.move ?? null,
+				blessing: ctx.blessing ?? null,
+				listener,
+				chargeTurns: listener.chargeTurns,
+			},
+		})),
+	);
 }

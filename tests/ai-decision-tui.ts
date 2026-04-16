@@ -17,6 +17,7 @@ import {
 	tickAttunements,
 	tickCooldowns,
 	tickIgnoresStatuses,
+	tickListenerCharges,
 	tickStatuses,
 } from '../src/combat/turn/index.ts';
 import { BasicAttackMoves } from '../src/data/templates/move/index.ts';
@@ -268,7 +269,7 @@ function prepareNextPendingTurn(
 			continue;
 		}
 
-		const audits = audit(actor);
+		const audits = audit(actor, simulation.combat);
 		const statuses = splitTickStatuses(audits.statuses);
 		if (statuses.damage.length > 0) {
 			tickStatuses(simulation.combat, actor, statuses.damage);
@@ -362,6 +363,9 @@ function advanceSimulation(
 	}
 	if (pending.audits.cooldowns.length > 0) {
 		tickCooldowns(simulation.combat, pending.actor, pending.audits.cooldowns);
+	}
+	if (pending.audits.listeners.length > 0) {
+		tickListenerCharges(simulation.combat, pending.actor, pending.audits.listeners);
 	}
 
 	cleanupEntity(pending.actor);

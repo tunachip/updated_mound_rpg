@@ -1,5 +1,12 @@
-import { applyStatusTurns, operation } from '../../../combat/operations/index.ts';
+import {
+	applyStatusTurns,
+	operation,
+	payEnergyForAdditionalStatusTurn,
+} from '../../../combat/operations/index.ts';
 import { createBasicUtilityMove } from './basic-utility.ts';
+
+// Update: applies 1 decay to an enemy
+// after thisk, the user may pay 2 energy to apply another decay
 
 export const ApplyDecay = createBasicUtilityMove({
 	id: 'move_apply_decay',
@@ -13,6 +20,9 @@ export const ApplyDecay = createBasicUtilityMove({
 	operations: [
 		operation(applyStatusTurns, {
 			ctx: { status: 'decay', amount: 1 },
+		}),
+		operation(payEnergyForAdditionalStatusTurn, {
+			ctx: { status: 'decay', amount: 2 },
 		}),
 	],
 });

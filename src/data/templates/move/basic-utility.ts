@@ -10,6 +10,7 @@ export function createBasicUtilityMove(options: {
 	targetType: MoveTemplate['targetType'];
 	operations: Array<Operation>;
 	loopOperations?: Array<Operation>;
+	ignoresStatuses?: MoveTemplate['ignoresStatuses'];
 }): MoveTemplate {
 	return {
 		id: options.id,
@@ -20,7 +21,7 @@ export function createBasicUtilityMove(options: {
 		element: options.element,
 		baseDamage: 0,
 		baseIterations: 1,
-		ignoresStatuses: [],
+		ignoresStatuses: options.ignoresStatuses ?? [],
 		operations: options.operations,
 		loopOperations: options.loopOperations ?? [],
 	};

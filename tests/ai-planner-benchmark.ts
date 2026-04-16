@@ -25,6 +25,7 @@ import {
 	tickAttunements,
 	tickCooldowns,
 	tickIgnoresStatuses,
+	tickListenerCharges,
 	tickStatuses,
 	turnChoiceDisqualified,
 } from '../src/combat/turn/index.ts';
@@ -367,7 +368,7 @@ async function runSimulation(
 				continue;
 			}
 
-			const audits = audit(actor);
+			const audits = audit(actor, combat);
 			const statuses = splitTickStatuses(audits.statuses);
 			if (statuses.damage.length > 0) {
 				tickStatuses(combat, actor, statuses.damage);
@@ -432,6 +433,9 @@ async function runSimulation(
 			}
 			if (audits.cooldowns.length > 0) {
 				tickCooldowns(combat, actor, audits.cooldowns);
+			}
+			if (audits.listeners.length > 0) {
+				tickListenerCharges(combat, actor, audits.listeners);
 			}
 
 			cleanupEntity(actor);

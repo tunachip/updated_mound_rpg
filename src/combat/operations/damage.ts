@@ -5,13 +5,19 @@ import type { OperationContext } from '.';
 import type { CombatEntity } from '../models';
 import type { DamageElement } from '../../shared';
 import { DamageElements, ElementRelationships } from '../../shared/index.ts';
-import { requireCtx } from './helpers.ts';
+import { randomNumber, requireCtx } from './helpers.ts';
 import { openWounds } from './open-wounds.ts';
 
 interface CalculatedDamage {
 	damage: number;
 	healed: number;
 	blocked: boolean;
+}
+
+function attackHitChance(
+	target: CombatEntity,
+): number {
+	return Math.max(0, Math.min(1, 1 - (target.statusTurns.slick * 0.1)));
 }
 
 function calculateDamage(
@@ -60,13 +66,15 @@ function getStatusDamageElement(
 
 function createHpChanges(
 	target: CombatEntity,
-	calculated: CalculatedDamage
+	calculated: CalculatedDamage,
+	hitChance: number = 1,
 ): Array<StateChange> {
 	const intents: Array<StateChange> = [];
 
 	if (calculated.healed > 0) {
 		const before = target.hp;
-		const after = Math.min(target.maxHp, before + calculated.healed);
+		const healed = calculated.healed * hitChance;
+		const after = Math.min(target.maxHp, before + healed);
 		if (after > before) {
 			intents.push({
 				host: target,
@@ -82,7 +90,8 @@ function createHpChanges(
 	}
 
 	const before = target.hp;
-	const after = Math.max(0, before - calculated.damage);
+	const damage = calculated.damage * hitChance;
+	const after = Math.max(0, before - damage);
 	const damageTaken = before - after;
 	if (damageTaken <= 0) {
 		return intents;
@@ -165,8 +174,28 @@ export function attack(
 	const { element, amount } = ctx;
 
 	for (const target of ctx.targets.entities) {
+		const hitChance = attackHitChance(target);
+		if (
+			ctx.predictionMode !== 'preview' &&
+			hitChance < 1 &&
+			randomNumber(0, 10) >= hitChance * 10
+		) {
+			intents.push({
+				host: target,
+				field: ['dodges'],
+				before: target.dodges,
+				after: target.dodges + 1,
+				signal: 'entity.dodges',
+			});
+			continue;
+		}
+
 		const calculated = calculateDamage(amount, element, target);
-		intents.push(...createHpChanges(target, calculated));
+		intents.push(...createHpChanges(
+			target,
+			calculated,
+			ctx.predictionMode === 'preview' ? hitChance : 1,
+		));
 		appendOpenWounds(intents, ctx, target);
 	}
 	return intents;

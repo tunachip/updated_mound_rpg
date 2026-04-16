@@ -52,6 +52,7 @@ function serializeMove(
 		baseIterations: move.baseIterations,
 		cooldownTurns: move.cooldownTurns,
 		isBound: move.isBound,
+		isBanked: move.isBanked,
 		canBeChainedInto: move.canBeChainedInto,
 		ignoresStatuses: [...move.ignoresStatuses],
 	};
@@ -237,6 +238,7 @@ function hydrateMove(
 	move.baseIterations = serialized.baseIterations;
 	move.cooldownTurns = serialized.cooldownTurns;
 	move.isBound = serialized.isBound;
+	move.isBanked = serialized.isBanked;
 	move.canBeChainedInto = serialized.canBeChainedInto;
 	move.ignoresStatuses = [...serialized.ignoresStatuses];
 	return move;
@@ -428,6 +430,7 @@ function focusChoiceForEntity(
 			baseIterations: 1,
 			cooldownTurns: 0,
 			isBound: false,
+			isBanked: false,
 			canBeChainedInto: false,
 			ignoresStatuses: ['sleep', 'anger', 'stun'],
 			operations: [
@@ -466,6 +469,7 @@ function repositionChoiceForEntity(
 			baseIterations: 1,
 			cooldownTurns: 0,
 			isBound: false,
+			isBanked: false,
 			canBeChainedInto: false,
 			ignoresStatuses: [],
 			operations: [

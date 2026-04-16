@@ -3,6 +3,7 @@
 import type { DamageElement, Status } from '../../shared';
 import type { CombatState } from '../types.ts';
 import type { CombatBlessing, CombatEntity, CombatMove } from '../models';
+import type { RegisteredRuntimeListener } from '../operations/index.ts';
 import {
 	blessingTargets,
 	entityTargets,
@@ -114,4 +115,25 @@ export function tickCooldowns(
 			}),
 		);
 	}
+}
+
+export function tickListenerCharges(
+	combat: CombatState,
+	entity: CombatEntity,
+	listeners: Array<RegisteredRuntimeListener>,
+): void {
+	if (listeners.length === 0) {
+		return;
+	}
+
+	for (const listener of listeners) {
+		if (listener.owner.id !== entity.id || listener.chargeTurns <= 0) {
+			continue;
+		}
+		listener.chargeTurns -= 1;
+	}
+
+	combat.listeners = combat.listeners.filter((listener) =>
+		listener.chargeTurns !== 0,
+	);
 }
